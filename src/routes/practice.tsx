@@ -266,8 +266,12 @@ function Practice() {
                         isActive ? "bg-accent" : "bg-background"
                       }`}
                     >
-                      <span className="label-caps text-xs">{s.gloss}</span>
+                      <span className="label-caps text-[10px] text-muted-foreground">
+                        {(lessons.data ?? []).find((l) => l.id === s.lesson_id)?.language}
+                      </span>
+                      <span className="label-caps ml-2 text-xs">{s.gloss}</span>
                       <span className="ml-2 text-xs text-muted-foreground">{s.meaning}</span>
+
                     </button>
                   );
                 })}
