@@ -14,7 +14,154 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      attempts: {
+        Row: {
+          confidence: number
+          created_at: string
+          feedback: string
+          id: string
+          sign_id: string | null
+          user_id: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          feedback?: string
+          id?: string
+          sign_id?: string | null
+          user_id: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          feedback?: string
+          id?: string
+          sign_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attempts_sign_id_fkey"
+            columns: ["sign_id"]
+            isOneToOne: false
+            referencedRelation: "signs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lessons: {
+        Row: {
+          created_at: string
+          id: string
+          language: string
+          order_index: number
+          slug: string
+          source: string
+          summary: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          language: string
+          order_index?: number
+          slug: string
+          source?: string
+          summary: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          language?: string
+          order_index?: number
+          slug?: string
+          source?: string
+          summary?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          streak: number
+          xp: number
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string
+          id: string
+          streak?: number
+          xp?: number
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          streak?: number
+          xp?: number
+        }
+        Relationships: []
+      }
+      signs: {
+        Row: {
+          common_mistake: string
+          expression: string
+          gloss: string
+          handshape: string
+          id: string
+          image_key: string
+          lesson_id: string
+          location: string
+          meaning: string
+          movement: string
+          order_index: number
+          slug: string
+          steps: string[]
+        }
+        Insert: {
+          common_mistake: string
+          expression: string
+          gloss: string
+          handshape: string
+          id?: string
+          image_key: string
+          lesson_id: string
+          location: string
+          meaning: string
+          movement: string
+          order_index?: number
+          slug: string
+          steps?: string[]
+        }
+        Update: {
+          common_mistake?: string
+          expression?: string
+          gloss?: string
+          handshape?: string
+          id?: string
+          image_key?: string
+          lesson_id?: string
+          location?: string
+          meaning?: string
+          movement?: string
+          order_index?: number
+          slug?: string
+          steps?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signs_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
