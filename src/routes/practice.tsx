@@ -124,10 +124,12 @@ function Practice() {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const frame = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
         if (prev) {
+          const previous: Uint8ClampedArray = prev;
           let diff = 0;
           for (let i = 0; i < frame.length; i += 16) {
-            diff += Math.abs(frame[i] - prev[i]);
+            diff += Math.abs((frame[i] ?? 0) - (previous[i] ?? 0));
           }
+
           total += diff / (frame.length / 16) / 255;
           samples += 1;
         }
