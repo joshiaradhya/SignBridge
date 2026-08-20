@@ -8,9 +8,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/practice")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    sign: typeof search.sign === "string" ? search.sign : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { sign?: string } =>
+    typeof search["sign"] === "string" ? { sign: search["sign"] } : {},
+
   head: () => ({
     meta: [
       { title: "SignLab practice studio — sign on camera | SignBridge" },
