@@ -1,24 +1,129 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { SiteHeader } from "@/components/SiteHeader";
+import aslHello from "@/assets/asl-hello.jpg";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "SignBridge — Learn ASL & ISL with documented signs" },
+      {
+        name: "description",
+        content:
+          "SignBridge teaches sign language through annotated illustrations, written movement notes and a live camera practice studio. Free ASL and ISL starter lessons.",
+      },
+      { property: "og:title", content: "SignBridge — Learn ASL & ISL" },
+      {
+        property: "og:description",
+        content:
+          "Documented ASL and ISL lessons with annotated illustrations plus a camera practice studio.",
+      },
+    ],
+  }),
+  component: Home,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+const pillars = [
+  {
+    title: "LEARN",
+    body: "Documentation-style lessons: annotated illustrations, handshape, location, movement and the mistake to avoid. No video required.",
+  },
+  {
+    title: "SIGNLAB",
+    body: "A camera practice studio with mirror mode, so you can watch your own hands while you copy the reference notes.",
+  },
+  {
+    title: "PROGRESS",
+    body: "Every practice attempt is scored and saved, so you can see which signs still need work.",
+  },
+];
+
+function Home() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="min-h-screen">
+      <SiteHeader />
+
+      <section className="grid-paper-soft border-b-2 border-border">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:py-24">
+          <div className="ink-lg mx-auto max-w-3xl rounded-3xl bg-card p-6 sm:p-10">
+            <p className="label-caps text-xs text-muted-foreground">
+              ASL &amp; ISL · Documentation first
+            </p>
+            <h1 className="mt-3 text-4xl leading-[0.95] sm:text-6xl">
+              LEARN IT.
+              <br />
+              PRACTICE IT.
+              <br />
+              USE IT.
+            </h1>
+            <p className="ink mt-6 rounded-xl bg-background p-4 text-sm leading-relaxed sm:text-base">
+              SignBridge is a sign-language-first learning space — not a translator. Read the
+              documented sign, study the annotated illustration, then turn on your camera and
+              practise the motion yourself.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                to="/learn"
+                className="ink ink-press label-caps rounded-xl bg-accent px-5 py-3 text-sm"
+              >
+                Start learning
+              </Link>
+              <Link
+                to="/practice"
+                className="ink ink-press label-caps rounded-xl bg-primary px-5 py-3 text-sm"
+              >
+                Open SignLab
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b-2 border-border bg-background">
+        <div className="mx-auto grid max-w-6xl gap-6 px-4 py-14 md:grid-cols-3">
+          {pillars.map((p) => (
+            <article key={p.title} className="ink rounded-2xl bg-card p-6">
+              <h2 className="text-2xl">{p.title}</h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="grid-paper border-b-2 border-border">
+        <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-14 md:grid-cols-2">
+          <div className="ink-lg overflow-hidden rounded-2xl bg-card">
+            <img
+              src={aslHello}
+              alt="Annotated illustration of the ASL sign for hello, with an arrow showing the hand arcing outward from the temple"
+              width={1024}
+              height={768}
+              className="w-full"
+            />
+          </div>
+          <div>
+            <h2 className="text-3xl">EVERY SIGN, WRITTEN DOWN</h2>
+            <p className="mt-4 text-sm leading-relaxed">
+              Each sign entry documents the handshape, where it starts, how it moves, the facial
+              expression that carries the meaning, and the mistake learners make most often — with
+              a step-by-step breakdown you can follow at your own pace.
+            </p>
+            <Link
+              to="/learn"
+              className="ink ink-press label-caps mt-6 inline-block rounded-xl bg-card px-5 py-3 text-sm"
+            >
+              Browse the lessons
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <footer className="mx-auto max-w-6xl px-4 py-10 text-xs text-muted-foreground">
+        <p className="label-caps">© 2026 SignBridge</p>
+        <p className="mt-2">
+          Data &amp; credits: reference material informed by the ASLLVD (ASL) and INCLUDE (ISL,
+          CC BY 4.0) datasets. Illustrations are original diagrams, not redistributed dataset media.
+        </p>
+      </footer>
     </div>
   );
 }
