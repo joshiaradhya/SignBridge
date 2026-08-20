@@ -128,9 +128,11 @@ function Dashboard() {
                       </div>
                       <Link
                         to="/practice"
-                        search={{
-                          sign: (signs.data ?? []).find((s) => s.id === w.id)?.slug,
-                        }}
+                        search={(() => {
+                          const slug = (signs.data ?? []).find((s) => s.id === w.id)?.slug;
+                          return slug ? { sign: slug } : {};
+                        })()}
+
                         className="ink ink-press label-caps rounded-lg bg-accent px-3 py-2 text-xs"
                       >
                         Practise again
