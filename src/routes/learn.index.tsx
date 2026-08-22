@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
+import { RequireAuth } from "@/components/RequireAuth";
 import { lessonsQuery, signsQuery } from "@/lib/signbridge";
 import { signImage } from "@/lib/sign-images";
 
@@ -30,6 +31,7 @@ function LearnIndex() {
   return (
     <div className="min-h-screen">
       <SiteHeader />
+      <RequireAuth>
       <div className="grid-paper-soft min-h-screen">
         <div className="mx-auto max-w-6xl px-4 py-12">
           <h1 className="text-4xl">LESSON LIBRARY</h1>
@@ -92,6 +94,7 @@ function LearnIndex() {
           </div>
         </div>
       </div>
+      </RequireAuth>
     </div>
   );
 }
