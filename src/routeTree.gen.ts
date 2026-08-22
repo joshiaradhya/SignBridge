@@ -18,6 +18,7 @@ import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ConnectIndexRouteImport } from './routes/connect.index'
 import { Route as ConnectRoomIdRouteImport } from './routes/connect.$roomId'
+import { Route as InsightsIndexRouteImport } from './routes/insights.index'
 import { Route as LearnIndexRouteImport } from './routes/learn.index'
 import { Route as LearnLessonSlugRouteImport } from './routes/learn.$lessonSlug'
 
@@ -66,6 +67,11 @@ const ConnectRoomIdRoute = ConnectRoomIdRouteImport.update({
   path: '/connect/$roomId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InsightsIndexRoute = InsightsIndexRouteImport.update({
+  id: '/insights/',
+  path: '/insights/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LearnIndexRoute = LearnIndexRouteImport.update({
   id: '/learn/',
   path: '/learn/',
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/connect/$roomId': typeof ConnectRoomIdRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/connect/': typeof ConnectIndexRoute
+  '/insights/': typeof InsightsIndexRoute
   '/learn/': typeof LearnIndexRoute
 }
 export interface FileRoutesByTo {
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/connect/$roomId': typeof ConnectRoomIdRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/connect': typeof ConnectIndexRoute
+  '/insights': typeof InsightsIndexRoute
   '/learn': typeof LearnIndexRoute
 }
 export interface FileRoutesById {
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/connect/$roomId': typeof ConnectRoomIdRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/connect/': typeof ConnectIndexRoute
+  '/insights/': typeof InsightsIndexRoute
   '/learn/': typeof LearnIndexRoute
 }
 export interface FileRouteTypes {
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/connect/$roomId'
     | '/learn/$lessonSlug'
     | '/connect/'
+    | '/insights/'
     | '/learn/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/connect/$roomId'
     | '/learn/$lessonSlug'
     | '/connect'
+    | '/insights'
     | '/learn'
   id:
     | '__root__'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/connect/$roomId'
     | '/learn/$lessonSlug'
     | '/connect/'
+    | '/insights/'
     | '/learn/'
   fileRoutesById: FileRoutesById
 }
@@ -170,6 +182,7 @@ export interface RootRouteChildren {
   ConnectRoomIdRoute: typeof ConnectRoomIdRoute
   LearnLessonSlugRoute: typeof LearnLessonSlugRoute
   ConnectIndexRoute: typeof ConnectIndexRoute
+  InsightsIndexRoute: typeof InsightsIndexRoute
   LearnIndexRoute: typeof LearnIndexRoute
 }
 
@@ -238,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConnectRoomIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/insights/': {
+      id: '/insights/'
+      path: '/insights'
+      fullPath: '/insights/'
+      preLoaderRoute: typeof InsightsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/learn/': {
       id: '/learn/'
       path: '/learn'
@@ -266,6 +286,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConnectRoomIdRoute: ConnectRoomIdRoute,
   LearnLessonSlugRoute: LearnLessonSlugRoute,
   ConnectIndexRoute: ConnectIndexRoute,
+  InsightsIndexRoute: InsightsIndexRoute,
   LearnIndexRoute: LearnIndexRoute,
 }
 export const routeTree = rootRouteImport
