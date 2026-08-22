@@ -1,8 +1,10 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { SignBridgeLogo } from "@/components/SignBridgeLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ProfileMenu } from "@/components/ProfileMenu";
+import { AuthFlash } from "@/components/AuthFlash";
+
 
 const navItems = [
   { to: "/learn", label: "Learn" },
