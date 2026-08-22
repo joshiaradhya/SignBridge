@@ -49,6 +49,44 @@ export type Database = {
           },
         ]
       }
+      call_transcripts: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          id: string
+          matched_label: string | null
+          room_id: string
+          sender_id: string
+          text: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          matched_label?: string | null
+          room_id: string
+          sender_id: string
+          text: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          matched_label?: string | null
+          room_id?: string
+          sender_id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_transcripts_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lessons: {
         Row: {
           created_at: string
@@ -82,6 +120,47 @@ export type Database = {
         }
         Relationships: []
       }
+      match_queue: {
+        Row: {
+          created_at: string
+          id: string
+          interests: Json
+          language: string
+          level: string
+          room_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interests?: Json
+          language?: string
+          level?: string
+          room_id?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interests?: Json
+          language?: string
+          level?: string
+          room_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_queue_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string
@@ -106,6 +185,97 @@ export type Database = {
           id?: string
           streak?: number
           xp?: number
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string | null
+          reported_id: string | null
+          reporter_id: string
+          room_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          reported_id?: string | null
+          reporter_id: string
+          room_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          reported_id?: string | null
+          reporter_id?: string
+          room_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_participants: {
+        Row: {
+          created_at: string
+          id: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          conversation_prompt: string | null
+          created_at: string
+          id: string
+          mode: string
+          room_code: string | null
+          status: string
+        }
+        Insert: {
+          conversation_prompt?: string | null
+          created_at?: string
+          id?: string
+          mode?: string
+          room_code?: string | null
+          status?: string
+        }
+        Update: {
+          conversation_prompt?: string | null
+          created_at?: string
+          id?: string
+          mode?: string
+          room_code?: string | null
+          status?: string
         }
         Relationships: []
       }
@@ -170,7 +340,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_room_member: {
+        Args: { _room_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

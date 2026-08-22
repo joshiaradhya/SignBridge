@@ -9,6 +9,7 @@ import { AuthFlash } from "@/components/AuthFlash";
 const navItems = [
   { to: "/learn", label: "Learn" },
   { to: "/practice", label: "Practice" },
+  { to: "/connect", label: "Connect" },
   { to: "/dashboard", label: "Dashboard" },
 ] as const;
 
