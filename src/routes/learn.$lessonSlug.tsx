@@ -106,7 +106,7 @@ function LessonPage() {
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <RequireAuth>
+      <RequireAuth what={lesson?.title}>
       <div className="grid-paper-soft min-h-screen">
         <div className="mx-auto max-w-5xl px-4 py-12">
           <Link to="/learn" className="label-caps text-xs underline">
