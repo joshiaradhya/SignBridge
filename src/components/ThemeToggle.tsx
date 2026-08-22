@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 
-function apply(theme: "light" | "dark") {
-  document.documentElement.classList.toggle("dark", theme === "dark");
-}
-
 export function ThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  const apply = (t: "light" | "dark") => {
+    document.documentElement.classList.toggle("dark", t === "dark");
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem("sb-theme");
@@ -17,8 +17,9 @@ export function ThemeToggle() {
           ? "dark"
           : "light";
     setTheme(initial);
-    apply(initial);
+    document.documentElement.classList.toggle("dark", initial === "dark");
   }, []);
+
 
   return (
     <button
