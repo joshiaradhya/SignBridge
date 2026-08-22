@@ -57,7 +57,6 @@ export function SiteHeader() {
       </div>
     </header>
   );
+}
 
-    </header>
-  );
 }
