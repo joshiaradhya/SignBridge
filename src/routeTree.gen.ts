@@ -10,17 +10,28 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AchievementsRouteImport } from './routes/achievements'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as PracticeRouteImport } from './routes/practice'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ConnectIndexRouteImport } from './routes/connect.index'
 import { Route as ConnectRoomIdRouteImport } from './routes/connect.$roomId'
+import { Route as InsightsIndexRouteImport } from './routes/insights.index'
+import { Route as InsightsSlugRouteImport } from './routes/insights.$slug'
 import { Route as LearnIndexRouteImport } from './routes/learn.index'
 import { Route as LearnLessonSlugRouteImport } from './routes/learn.$lessonSlug'
+import { Route as LearnCourseCourseSlugRouteImport } from './routes/learn.course.$courseSlug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AchievementsRoute = AchievementsRouteImport.update({
+  id: '/achievements',
+  path: '/achievements',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -33,9 +44,19 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FriendsRoute = FriendsRouteImport.update({
+  id: '/friends',
+  path: '/friends',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PracticeRoute = PracticeRouteImport.update({
   id: '/practice',
   path: '/practice',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConnectIndexRoute = ConnectIndexRouteImport.update({
@@ -48,6 +69,16 @@ const ConnectRoomIdRoute = ConnectRoomIdRouteImport.update({
   path: '/connect/$roomId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InsightsIndexRoute = InsightsIndexRouteImport.update({
+  id: '/insights/',
+  path: '/insights/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InsightsSlugRoute = InsightsSlugRouteImport.update({
+  id: '/insights/$slug',
+  path: '/insights/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LearnIndexRoute = LearnIndexRouteImport.update({
   id: '/learn/',
   path: '/learn/',
@@ -58,80 +89,127 @@ const LearnLessonSlugRoute = LearnLessonSlugRouteImport.update({
   path: '/learn/$lessonSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LearnCourseCourseSlugRoute = LearnCourseCourseSlugRouteImport.update({
+  id: '/learn/course/$courseSlug',
+  path: '/learn/course/$courseSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/achievements': typeof AchievementsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/friends': typeof FriendsRoute
   '/practice': typeof PracticeRoute
+  '/profile': typeof ProfileRoute
   '/connect/$roomId': typeof ConnectRoomIdRoute
+  '/insights/$slug': typeof InsightsSlugRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/connect/': typeof ConnectIndexRoute
+  '/insights/': typeof InsightsIndexRoute
   '/learn/': typeof LearnIndexRoute
+  '/learn/course/$courseSlug': typeof LearnCourseCourseSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/achievements': typeof AchievementsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/friends': typeof FriendsRoute
   '/practice': typeof PracticeRoute
+  '/profile': typeof ProfileRoute
   '/connect/$roomId': typeof ConnectRoomIdRoute
+  '/insights/$slug': typeof InsightsSlugRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/connect': typeof ConnectIndexRoute
+  '/insights': typeof InsightsIndexRoute
   '/learn': typeof LearnIndexRoute
+  '/learn/course/$courseSlug': typeof LearnCourseCourseSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/achievements': typeof AchievementsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/friends': typeof FriendsRoute
   '/practice': typeof PracticeRoute
+  '/profile': typeof ProfileRoute
   '/connect/$roomId': typeof ConnectRoomIdRoute
+  '/insights/$slug': typeof InsightsSlugRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/connect/': typeof ConnectIndexRoute
+  '/insights/': typeof InsightsIndexRoute
   '/learn/': typeof LearnIndexRoute
+  '/learn/course/$courseSlug': typeof LearnCourseCourseSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/achievements'
     | '/auth'
     | '/dashboard'
+    | '/friends'
     | '/practice'
+    | '/profile'
     | '/connect/$roomId'
+    | '/insights/$slug'
     | '/learn/$lessonSlug'
     | '/connect/'
+    | '/insights/'
     | '/learn/'
+    | '/learn/course/$courseSlug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/achievements'
     | '/auth'
     | '/dashboard'
+    | '/friends'
     | '/practice'
+    | '/profile'
     | '/connect/$roomId'
+    | '/insights/$slug'
     | '/learn/$lessonSlug'
     | '/connect'
+    | '/insights'
     | '/learn'
+    | '/learn/course/$courseSlug'
   id:
     | '__root__'
     | '/'
+    | '/achievements'
     | '/auth'
     | '/dashboard'
+    | '/friends'
     | '/practice'
+    | '/profile'
     | '/connect/$roomId'
+    | '/insights/$slug'
     | '/learn/$lessonSlug'
     | '/connect/'
+    | '/insights/'
     | '/learn/'
+    | '/learn/course/$courseSlug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AchievementsRoute: typeof AchievementsRoute
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRoute
+  FriendsRoute: typeof FriendsRoute
   PracticeRoute: typeof PracticeRoute
+  ProfileRoute: typeof ProfileRoute
   ConnectRoomIdRoute: typeof ConnectRoomIdRoute
+  InsightsSlugRoute: typeof InsightsSlugRoute
   LearnLessonSlugRoute: typeof LearnLessonSlugRoute
   ConnectIndexRoute: typeof ConnectIndexRoute
+  InsightsIndexRoute: typeof InsightsIndexRoute
   LearnIndexRoute: typeof LearnIndexRoute
+  LearnCourseCourseSlugRoute: typeof LearnCourseCourseSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -141,6 +219,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/achievements': {
+      id: '/achievements'
+      path: '/achievements'
+      fullPath: '/achievements'
+      preLoaderRoute: typeof AchievementsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -157,11 +242,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/friends': {
+      id: '/friends'
+      path: '/friends'
+      fullPath: '/friends'
+      preLoaderRoute: typeof FriendsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/practice': {
       id: '/practice'
       path: '/practice'
       fullPath: '/practice'
       preLoaderRoute: typeof PracticeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/connect/': {
@@ -178,6 +277,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConnectRoomIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/insights/': {
+      id: '/insights/'
+      path: '/insights'
+      fullPath: '/insights/'
+      preLoaderRoute: typeof InsightsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/insights/$slug': {
+      id: '/insights/$slug'
+      path: '/insights/$slug'
+      fullPath: '/insights/$slug'
+      preLoaderRoute: typeof InsightsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/learn/': {
       id: '/learn/'
       path: '/learn'
@@ -192,18 +305,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LearnLessonSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/learn/course/$courseSlug': {
+      id: '/learn/course/$courseSlug'
+      path: '/learn/course/$courseSlug'
+      fullPath: '/learn/course/$courseSlug'
+      preLoaderRoute: typeof LearnCourseCourseSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AchievementsRoute: AchievementsRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRoute,
+  FriendsRoute: FriendsRoute,
   PracticeRoute: PracticeRoute,
+  ProfileRoute: ProfileRoute,
   ConnectRoomIdRoute: ConnectRoomIdRoute,
+  InsightsSlugRoute: InsightsSlugRoute,
   LearnLessonSlugRoute: LearnLessonSlugRoute,
   ConnectIndexRoute: ConnectIndexRoute,
+  InsightsIndexRoute: InsightsIndexRoute,
   LearnIndexRoute: LearnIndexRoute,
+  LearnCourseCourseSlugRoute: LearnCourseCourseSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

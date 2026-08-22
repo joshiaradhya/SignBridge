@@ -8,6 +8,9 @@ export type Profile = {
   avatar_url: string;
   xp: number;
   streak: number;
+  best_streak: number;
+  daily_goal: number;
+  last_active_date: string | null;
 };
 
 export function useProfile() {
@@ -22,7 +25,7 @@ export function useProfile() {
     queryFn: async (): Promise<Profile | null> => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, display_name, avatar_url, xp, streak")
+        .select("id, display_name, avatar_url, xp, streak, best_streak, daily_goal, last_active_date")
         .eq("id", userId!)
         .maybeSingle();
       if (error) throw error;
@@ -55,6 +58,13 @@ export function useProfile() {
     await queryClient.invalidateQueries({ queryKey: ["profile", userId] });
   }
 
+  async function saveDailyGoal(goal: number) {
+    if (!userId) return;
+    const { error } = await supabase.from("profiles").update({ daily_goal: goal }).eq("id", userId);
+    if (error) throw error;
+    await queryClient.invalidateQueries({ queryKey: ["profile", userId] });
+  }
+
   async function uploadAvatar(file: File) {
     if (!userId) return;
     const ext = file.name.split(".").pop()?.toLowerCase() || "png";
@@ -76,6 +86,7 @@ export function useProfile() {
     loading: profile.isLoading,
     avatarUrl: avatar.data ?? null,
     saveDisplayName,
+    saveDailyGoal,
     uploadAvatar,
   };
 }
