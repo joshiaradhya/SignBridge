@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as PracticeRouteImport } from './routes/practice'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ConnectIndexRouteImport } from './routes/connect.index'
 import { Route as ConnectRoomIdRouteImport } from './routes/connect.$roomId'
 import { Route as LearnIndexRouteImport } from './routes/learn.index'
@@ -50,6 +51,11 @@ const PracticeRoute = PracticeRouteImport.update({
   path: '/practice',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConnectIndexRoute = ConnectIndexRouteImport.update({
   id: '/connect/',
   path: '/connect/',
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/friends': typeof FriendsRoute
   '/practice': typeof PracticeRoute
+  '/profile': typeof ProfileRoute
   '/connect/$roomId': typeof ConnectRoomIdRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/connect/': typeof ConnectIndexRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/friends': typeof FriendsRoute
   '/practice': typeof PracticeRoute
+  '/profile': typeof ProfileRoute
   '/connect/$roomId': typeof ConnectRoomIdRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/connect': typeof ConnectIndexRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/friends': typeof FriendsRoute
   '/practice': typeof PracticeRoute
+  '/profile': typeof ProfileRoute
   '/connect/$roomId': typeof ConnectRoomIdRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/connect/': typeof ConnectIndexRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/friends'
     | '/practice'
+    | '/profile'
     | '/connect/$roomId'
     | '/learn/$lessonSlug'
     | '/connect/'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/friends'
     | '/practice'
+    | '/profile'
     | '/connect/$roomId'
     | '/learn/$lessonSlug'
     | '/connect'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/friends'
     | '/practice'
+    | '/profile'
     | '/connect/$roomId'
     | '/learn/$lessonSlug'
     | '/connect/'
@@ -154,6 +166,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   FriendsRoute: typeof FriendsRoute
   PracticeRoute: typeof PracticeRoute
+  ProfileRoute: typeof ProfileRoute
   ConnectRoomIdRoute: typeof ConnectRoomIdRoute
   LearnLessonSlugRoute: typeof LearnLessonSlugRoute
   ConnectIndexRoute: typeof ConnectIndexRoute
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PracticeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/connect/': {
       id: '/connect/'
       path: '/connect'
@@ -242,6 +262,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   FriendsRoute: FriendsRoute,
   PracticeRoute: PracticeRoute,
+  ProfileRoute: ProfileRoute,
   ConnectRoomIdRoute: ConnectRoomIdRoute,
   LearnLessonSlugRoute: LearnLessonSlugRoute,
   ConnectIndexRoute: ConnectIndexRoute,
