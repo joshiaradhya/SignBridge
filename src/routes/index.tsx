@@ -43,20 +43,17 @@ function Home() {
       <SiteHeader />
 
       <section className="grid-paper-soft border-b-2 border-border">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:py-24">
-          <div className="ink-lg mx-auto max-w-3xl rounded-3xl bg-card p-6 sm:p-10">
-            <p className="label-caps text-xs text-muted-foreground">
-              ASL &amp; ISL · Documentation first
-            </p>
-            <h1 className="mt-3 text-3xl leading-[1.05] sm:text-5xl">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:py-24">
+          <div className="ink-lg mx-auto w-full max-w-6xl rounded-3xl bg-card p-8 sm:p-14">
+            <h1 className="text-4xl leading-[1.05] sm:text-6xl">
               Learn the language.
               <br />
               Master the sign.
               <br />
               Bridge the connection.
             </h1>
-            <p className="ink mt-6 rounded-xl bg-background p-4 text-sm leading-relaxed sm:text-base">
-              SignBridge is a sign-language-first learning space — not a translator. Read the
+            <p className="ink mt-8 rounded-xl bg-background p-5 text-sm leading-relaxed sm:text-base">
+              SignBridge is a sign-language-first learning space, not a translator. Read the
               documented sign, study the annotated illustration, then turn on your camera and
               practise the motion yourself.
             </p>
