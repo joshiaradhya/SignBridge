@@ -108,12 +108,19 @@ function Practice() {
 
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
-    canvas.width = 160;
-    canvas.height = 120;
+    const W = (canvas.width = 160);
+    const H = (canvas.height = 120);
 
     let prev: Uint8ClampedArray | null = null;
     let total = 0;
     let samples = 0;
+    let activePixels = 0;
+    let sampledPixels = 0;
+    let weightX = 0;
+    let weightY = 0;
+    let weightSum = 0;
+    let faceMotion = 0;
+    const energies: number[] = [];
     const durationMs = 3000;
     const start = performance.now();
 
@@ -121,16 +128,30 @@ function Practice() {
       const tick = () => {
         const elapsed = performance.now() - start;
         setCountdown(Math.max(0, Math.ceil((durationMs - elapsed) / 1000)));
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const frame = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        ctx.drawImage(video, 0, 0, W, H);
+        const frame = ctx.getImageData(0, 0, W, H).data;
         if (prev) {
           const previous: Uint8ClampedArray = prev;
           let diff = 0;
+          let count = 0;
           for (let i = 0; i < frame.length; i += 16) {
-            diff += Math.abs((frame[i] ?? 0) - (previous[i] ?? 0));
+            const d = Math.abs((frame[i] ?? 0) - (previous[i] ?? 0));
+            diff += d;
+            count += 1;
+            if (d > 18) {
+              const px = (i / 4) % W;
+              const py = Math.floor(i / 4 / W);
+              activePixels += 1;
+              weightX += px / W;
+              weightY += py / H;
+              weightSum += 1;
+              if (py / H < 0.35) faceMotion += 1;
+            }
           }
-
-          total += diff / (frame.length / 16) / 255;
+          sampledPixels += count;
+          const e = diff / count / 255;
+          energies.push(e * 100);
+          total += e;
           samples += 1;
         }
         prev = new Uint8ClampedArray(frame);
@@ -144,22 +165,37 @@ function Practice() {
     setCountdown(0);
 
     const energy = samples > 0 ? (total / samples) * 100 : 0;
-    // Reward clear, sustained motion; penalise near-still frames and frantic motion.
-    const ideal = 4;
-    const closeness = Math.max(0, 1 - Math.abs(energy - ideal) / (ideal * 2));
-    const score = Math.round(52 + closeness * 46);
-    const feedback = feedbackFor(score, energy);
-    setResult({ score, feedback });
+    const mean = energy;
+    const jitter =
+      energies.length > 1
+        ? Math.sqrt(
+            energies.reduce((s, e) => s + (e - mean) ** 2, 0) / energies.length,
+          )
+        : 0;
+
+    const analysis = analyseAttempt(
+      {
+        energy,
+        detail: sampledPixels > 0 ? activePixels / sampledPixels : 0,
+        centroidX: weightSum > 0 ? weightX / weightSum : 0.5,
+        centroidY: weightSum > 0 ? weightY / weightSum : 0.5,
+        faceBand: activePixels > 0 ? faceMotion / activePixels : 0,
+        jitter,
+      },
+      activeSign,
+    );
+    setResult(analysis);
 
     if (user && activeSign) {
       await supabase.from("attempts").insert({
         user_id: user.id,
         sign_id: activeSign.id,
-        confidence: score,
-        feedback,
+        confidence: analysis.score,
+        feedback: analysis.feedback,
       });
     }
   }
+
 
   return (
     <div className="min-h-screen">
