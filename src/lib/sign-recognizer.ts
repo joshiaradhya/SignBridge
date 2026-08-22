@@ -20,6 +20,23 @@ export const VOCABULARY = [
   "HELP",
 ] as const;
 
+/** Instant local phrasing so a caption can appear before the AI polish returns. */
+const LOCAL_PHRASES: Record<string, string> = {
+  HELLO: "Hello there!",
+  "THANK YOU": "Thank you so much.",
+  PLEASE: "Please.",
+  YES: "Yes.",
+  NO: "No.",
+  YOU: "You.",
+  GOOD: "That's good!",
+  SORRY: "I'm sorry.",
+  HELP: "Can you help me?",
+};
+
+export function localPhrase(label: string) {
+  return LOCAL_PHRASES[label] ?? `${label.charAt(0)}${label.slice(1).toLowerCase()}.`;
+}
+
 let landmarkerPromise: Promise<HandLandmarker> | null = null;
 
 export function loadLandmarker() {
@@ -29,18 +46,34 @@ export function loadLandmarker() {
       const fileset = await vision.FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm",
       );
-      return vision.HandLandmarker.createFromOptions(fileset, {
+      const options = {
         baseOptions: {
           modelAssetPath:
             "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+          delegate: "GPU" as const,
         },
         numHands: 1,
-        runningMode: "VIDEO",
-      });
+        runningMode: "VIDEO" as const,
+        minHandDetectionConfidence: 0.4,
+        minTrackingConfidence: 0.4,
+      };
+      try {
+        return await vision.HandLandmarker.createFromOptions(fileset, options);
+      } catch {
+        // Some browsers/drivers have no usable WebGL context — fall back to CPU.
+        return vision.HandLandmarker.createFromOptions(fileset, {
+          ...options,
+          baseOptions: { ...options.baseOptions, delegate: "CPU" as const },
+        });
+      }
     })();
+    landmarkerPromise.catch(() => {
+      landmarkerPromise = null;
+    });
   }
   return landmarkerPromise;
 }
+
 
 const TIPS = [8, 12, 16, 20];
 const PIPS = [6, 10, 14, 18];
