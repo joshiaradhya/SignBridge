@@ -1,6 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { SignBridgeLogo } from "@/components/SignBridgeLogo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { to: "/learn", label: "Learn" },
@@ -15,8 +17,8 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b-2 border-border bg-background/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:gap-6">
-        <Link to="/" className="font-display text-xl font-extrabold tracking-tight">
-          SIGNBRIDGE
+        <Link to="/" aria-label="SignBridge home">
+          <SignBridgeLogo />
         </Link>
         <nav className="flex items-center gap-1 sm:gap-2">
           {navItems.map((item) => (
@@ -30,7 +32,8 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
           {user ? (
             <button
               onClick={async () => {

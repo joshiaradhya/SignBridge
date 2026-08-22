@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
+import { RequireAuth } from "@/components/RequireAuth";
 import { lessonsQuery, signsQuery, type Sign } from "@/lib/signbridge";
 import { signImage } from "@/lib/sign-images";
 
@@ -105,6 +106,7 @@ function LessonPage() {
   return (
     <div className="min-h-screen">
       <SiteHeader />
+      <RequireAuth>
       <div className="grid-paper-soft min-h-screen">
         <div className="mx-auto max-w-5xl px-4 py-12">
           <Link to="/learn" className="label-caps text-xs underline">
@@ -137,6 +139,7 @@ function LessonPage() {
           )}
         </div>
       </div>
+      </RequireAuth>
     </div>
   );
 }

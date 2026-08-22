@@ -48,12 +48,12 @@ function Home() {
             <p className="label-caps text-xs text-muted-foreground">
               ASL &amp; ISL · Documentation first
             </p>
-            <h1 className="mt-3 text-4xl leading-[0.95] sm:text-6xl">
-              LEARN IT.
+            <h1 className="mt-3 text-3xl leading-[1.05] sm:text-5xl">
+              Learn the language.
               <br />
-              PRACTICE IT.
+              Master the sign.
               <br />
-              USE IT.
+              Bridge the connection.
             </h1>
             <p className="ink mt-6 rounded-xl bg-background p-4 text-sm leading-relaxed sm:text-base">
               SignBridge is a sign-language-first learning space — not a translator. Read the
