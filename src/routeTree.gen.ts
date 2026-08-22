@@ -22,6 +22,7 @@ import { Route as InsightsIndexRouteImport } from './routes/insights.index'
 import { Route as InsightsSlugRouteImport } from './routes/insights.$slug'
 import { Route as LearnIndexRouteImport } from './routes/learn.index'
 import { Route as LearnLessonSlugRouteImport } from './routes/learn.$lessonSlug'
+import { Route as LearnCourseCourseSlugRouteImport } from './routes/learn.course.$courseSlug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -88,6 +89,11 @@ const LearnLessonSlugRoute = LearnLessonSlugRouteImport.update({
   path: '/learn/$lessonSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LearnCourseCourseSlugRoute = LearnCourseCourseSlugRouteImport.update({
+  id: '/learn/course/$courseSlug',
+  path: '/learn/course/$courseSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/connect/': typeof ConnectIndexRoute
   '/insights/': typeof InsightsIndexRoute
   '/learn/': typeof LearnIndexRoute
+  '/learn/course/$courseSlug': typeof LearnCourseCourseSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/connect': typeof ConnectIndexRoute
   '/insights': typeof InsightsIndexRoute
   '/learn': typeof LearnIndexRoute
+  '/learn/course/$courseSlug': typeof LearnCourseCourseSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/connect/': typeof ConnectIndexRoute
   '/insights/': typeof InsightsIndexRoute
   '/learn/': typeof LearnIndexRoute
+  '/learn/course/$courseSlug': typeof LearnCourseCourseSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/connect/'
     | '/insights/'
     | '/learn/'
+    | '/learn/course/$courseSlug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/connect'
     | '/insights'
     | '/learn'
+    | '/learn/course/$courseSlug'
   id:
     | '__root__'
     | '/'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/connect/'
     | '/insights/'
     | '/learn/'
+    | '/learn/course/$courseSlug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -197,6 +209,7 @@ export interface RootRouteChildren {
   ConnectIndexRoute: typeof ConnectIndexRoute
   InsightsIndexRoute: typeof InsightsIndexRoute
   LearnIndexRoute: typeof LearnIndexRoute
+  LearnCourseCourseSlugRoute: typeof LearnCourseCourseSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -292,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LearnLessonSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/learn/course/$courseSlug': {
+      id: '/learn/course/$courseSlug'
+      path: '/learn/course/$courseSlug'
+      fullPath: '/learn/course/$courseSlug'
+      preLoaderRoute: typeof LearnCourseCourseSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -309,6 +329,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConnectIndexRoute: ConnectIndexRoute,
   InsightsIndexRoute: InsightsIndexRoute,
   LearnIndexRoute: LearnIndexRoute,
+  LearnCourseCourseSlugRoute: LearnCourseCourseSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
