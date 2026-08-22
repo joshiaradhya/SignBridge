@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
-export function RequireAuth({ children, what }: { children: ReactNode; what?: string }) {
+export function RequireAuth({ children, what }: { children: ReactNode; what?: string | undefined }) {
   const { user, loading } = useAuth();
   const href = useRouterState({ select: (s) => s.location.href });
 
