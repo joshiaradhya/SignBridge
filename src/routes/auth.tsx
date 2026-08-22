@@ -6,6 +6,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { SiteHeader } from "@/components/SiteHeader";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>): { redirect?: string; mode?: string } => {
+    const out: { redirect?: string; mode?: string } = {};
+    const r = search["redirect"];
+    if (typeof r === "string" && r.startsWith("/")) out.redirect = r;
+    if (search["mode"] === "signup") out.mode = "signup";
+    return out;
+  },
   head: () => ({
     meta: [
       { title: "Sign in — SignBridge" },
@@ -25,7 +32,10 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const { redirect: redirectTo, mode: modeParam } = Route.useSearch();
+  const [mode, setMode] = useState<"signin" | "signup">(
+    modeParam === "signup" ? "signup" : "signin",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,8 +44,8 @@ function AuthPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) navigate({ to: "/dashboard" });
-  }, [user, navigate]);
+    if (user) navigate({ to: redirectTo ?? "/dashboard", replace: true });
+  }, [user, navigate, redirectTo]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,7 +55,9 @@ function AuthPage() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: window.location.origin },
+        options: {
+          emailRedirectTo: `${window.location.origin}${redirectTo ?? "/dashboard"}`,
+        },
       });
       setMessage(error ? error.message : "Account created — you're signed in.");
     } else {
@@ -57,7 +69,7 @@ function AuthPage() {
 
   async function google() {
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: `${window.location.origin}${redirectTo ?? ""}`,
     });
     if (result.error) setMessage("Google sign-in failed. Try again.");
   }
@@ -68,7 +80,11 @@ function AuthPage() {
       <div className="grid-paper-soft flex min-h-screen items-start justify-center px-4 py-16">
         <div className="ink-lg w-full max-w-md rounded-2xl bg-card p-6 sm:p-8">
           <h1 className="text-3xl">{mode === "signin" ? "WELCOME BACK" : "CREATE ACCOUNT"}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Continue your ASL / ISL journey.</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {redirectTo
+              ? "Sign in and we'll take you straight back to where you left off."
+              : "Continue your ASL / ISL journey."}
+          </p>
 
           <form onSubmit={submit} className="mt-6 space-y-4">
             <div>

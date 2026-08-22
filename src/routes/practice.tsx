@@ -6,6 +6,7 @@ import { signsQuery, lessonsQuery } from "@/lib/signbridge";
 import { signImage } from "@/lib/sign-images";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { analyseAttempt, type Result } from "@/lib/attempt-analysis";
 
 export const Route = createFileRoute("/practice")({
   validateSearch: (search: Record<string, unknown>): { sign?: string } =>
@@ -28,21 +29,6 @@ export const Route = createFileRoute("/practice")({
   }),
   component: Practice,
 });
-
-type Result = { score: number; feedback: string };
-
-function feedbackFor(score: number, energy: number): string {
-  if (energy < 0.6) {
-    return "Barely any movement was detected — make sure your hands are inside the frame and repeat the motion more fully.";
-  }
-  if (score >= 90) {
-    return "Great form. The motion is clear and well-paced — hold the end position for a beat longer to finish cleanly.";
-  }
-  if (score >= 75) {
-    return "Solid attempt. Slow the movement slightly and keep your hand inside the frame for the whole gesture.";
-  }
-  return "The motion looks rushed or partly out of frame. Re-read the movement notes and try again at half speed.";
-}
 
 function Practice() {
   const { sign: signParam } = Route.useSearch();
@@ -108,12 +94,19 @@ function Practice() {
 
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
-    canvas.width = 160;
-    canvas.height = 120;
+    const W = (canvas.width = 160);
+    const H = (canvas.height = 120);
 
     let prev: Uint8ClampedArray | null = null;
     let total = 0;
     let samples = 0;
+    let activePixels = 0;
+    let sampledPixels = 0;
+    let weightX = 0;
+    let weightY = 0;
+    let weightSum = 0;
+    let faceMotion = 0;
+    const energies: number[] = [];
     const durationMs = 3000;
     const start = performance.now();
 
@@ -121,16 +114,30 @@ function Practice() {
       const tick = () => {
         const elapsed = performance.now() - start;
         setCountdown(Math.max(0, Math.ceil((durationMs - elapsed) / 1000)));
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const frame = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        ctx.drawImage(video, 0, 0, W, H);
+        const frame = ctx.getImageData(0, 0, W, H).data;
         if (prev) {
           const previous: Uint8ClampedArray = prev;
           let diff = 0;
+          let count = 0;
           for (let i = 0; i < frame.length; i += 16) {
-            diff += Math.abs((frame[i] ?? 0) - (previous[i] ?? 0));
+            const d = Math.abs((frame[i] ?? 0) - (previous[i] ?? 0));
+            diff += d;
+            count += 1;
+            if (d > 18) {
+              const px = (i / 4) % W;
+              const py = Math.floor(i / 4 / W);
+              activePixels += 1;
+              weightX += px / W;
+              weightY += py / H;
+              weightSum += 1;
+              if (py / H < 0.35) faceMotion += 1;
+            }
           }
-
-          total += diff / (frame.length / 16) / 255;
+          sampledPixels += count;
+          const e = diff / count / 255;
+          energies.push(e * 100);
+          total += e;
           samples += 1;
         }
         prev = new Uint8ClampedArray(frame);
@@ -144,22 +151,37 @@ function Practice() {
     setCountdown(0);
 
     const energy = samples > 0 ? (total / samples) * 100 : 0;
-    // Reward clear, sustained motion; penalise near-still frames and frantic motion.
-    const ideal = 4;
-    const closeness = Math.max(0, 1 - Math.abs(energy - ideal) / (ideal * 2));
-    const score = Math.round(52 + closeness * 46);
-    const feedback = feedbackFor(score, energy);
-    setResult({ score, feedback });
+    const mean = energy;
+    const jitter =
+      energies.length > 1
+        ? Math.sqrt(
+            energies.reduce((s, e) => s + (e - mean) ** 2, 0) / energies.length,
+          )
+        : 0;
+
+    const analysis = analyseAttempt(
+      {
+        energy,
+        detail: sampledPixels > 0 ? activePixels / sampledPixels : 0,
+        centroidX: weightSum > 0 ? weightX / weightSum : 0.5,
+        centroidY: weightSum > 0 ? weightY / weightSum : 0.5,
+        faceBand: activePixels > 0 ? faceMotion / activePixels : 0,
+        jitter,
+      },
+      activeSign,
+    );
+    setResult(analysis);
 
     if (user && activeSign) {
       await supabase.from("attempts").insert({
         user_id: user.id,
         sign_id: activeSign.id,
-        confidence: score,
-        feedback,
+        confidence: analysis.score,
+        feedback: analysis.feedback,
       });
     }
   }
+
 
   return (
     <div className="min-h-screen">
@@ -234,11 +256,55 @@ function Practice() {
 
               {result ? (
                 <div className="ink mt-4 rounded-xl bg-primary p-4">
-                  <p className="label-caps text-[11px]">Attempt score</p>
-                  <p className="font-display text-4xl font-extrabold">{result.score}%</p>
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <p className="label-caps text-[11px]">Attempt score</p>
+                      <p className="font-display text-4xl font-extrabold">{result.score}%</p>
+                    </div>
+                    <p className="label-caps text-[11px]">
+                      {result.criteria.filter((c) => c.matched).length}/4 components matched
+                    </p>
+                  </div>
                   <p className="mt-2 text-sm leading-relaxed">{result.feedback}</p>
+
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {result.criteria.map((c) => (
+                      <div key={c.key} className="ink rounded-xl bg-card p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="label-caps text-[11px]">{c.label}</span>
+                          <span
+                            className={`ink label-caps rounded-full px-2 py-0.5 text-[10px] ${
+                              c.matched ? "bg-accent" : "bg-background"
+                            }`}
+                          >
+                            {c.matched ? "Matched" : "Needs work"} · {c.score}%
+                          </span>
+                        </div>
+                        <div className="ink mt-2 h-2 w-full overflow-hidden rounded-full bg-background">
+                          <div
+                            className={c.matched ? "h-full bg-accent" : "h-full bg-muted-foreground"}
+                            style={{ width: `${c.score}%` }}
+                          />
+                        </div>
+                        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{c.note}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="ink mt-4 rounded-xl bg-card p-3">
+                    <p className="label-caps text-[11px]">Tips for your next attempt</p>
+                    <ul className="mt-2 space-y-1.5 text-xs leading-relaxed">
+                      {result.tips.map((t) => (
+                        <li key={t} className="flex gap-2">
+                          <span aria-hidden>→</span>
+                          <span>{t}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
                   {!user ? (
-                    <p className="mt-2 text-xs">
+                    <p className="mt-3 text-xs">
                       <Link to="/auth" className="underline">
                         Sign in
                       </Link>{" "}
@@ -247,6 +313,7 @@ function Practice() {
                   ) : null}
                 </div>
               ) : null}
+
             </section>
 
             <section className="ink-lg rounded-2xl bg-card p-4 sm:p-6">
