@@ -6,6 +6,7 @@ import { signsQuery, lessonsQuery } from "@/lib/signbridge";
 import { signImage } from "@/lib/sign-images";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { analyseAttempt, type Result } from "@/lib/attempt-analysis";
 
 export const Route = createFileRoute("/practice")({
   validateSearch: (search: Record<string, unknown>): { sign?: string } =>
@@ -28,9 +29,6 @@ export const Route = createFileRoute("/practice")({
   }),
   component: Practice,
 });
-
-import { analyseAttempt, type Result } from "@/lib/attempt-analysis";
-
 
 function Practice() {
   const { sign: signParam } = Route.useSearch();
