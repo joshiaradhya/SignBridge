@@ -259,3 +259,36 @@
 .logo:hover .logo-bridge {
   transform: translateX(3px) skewX(-6deg);
 }
+
+@keyframes auth-swap {
+  from { opacity: 0; transform: translateY(-6px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-auth-swap { animation: auth-swap 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-pop { animation: pop-in 0.18s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes auth-flash-card {
+  0% { opacity: 0; transform: translateY(-24px) scale(0.9) rotate(-2deg); }
+  18% { opacity: 1; transform: translateY(0) scale(1.03) rotate(0deg); }
+  30% { transform: scale(1); }
+  80% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-14px) scale(0.96); }
+}
+.auth-flash-card { animation: auth-flash-card 1.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes auth-flash-veil {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.auth-flash-veil { animation: auth-flash-veil 1.8s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-auth-swap, .animate-pop, .auth-flash-card, .auth-flash-veil { animation-duration: 0.01ms; }
+}
