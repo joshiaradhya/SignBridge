@@ -256,11 +256,55 @@ function Practice() {
 
               {result ? (
                 <div className="ink mt-4 rounded-xl bg-primary p-4">
-                  <p className="label-caps text-[11px]">Attempt score</p>
-                  <p className="font-display text-4xl font-extrabold">{result.score}%</p>
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <p className="label-caps text-[11px]">Attempt score</p>
+                      <p className="font-display text-4xl font-extrabold">{result.score}%</p>
+                    </div>
+                    <p className="label-caps text-[11px]">
+                      {result.criteria.filter((c) => c.matched).length}/4 components matched
+                    </p>
+                  </div>
                   <p className="mt-2 text-sm leading-relaxed">{result.feedback}</p>
+
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {result.criteria.map((c) => (
+                      <div key={c.key} className="ink rounded-xl bg-card p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="label-caps text-[11px]">{c.label}</span>
+                          <span
+                            className={`ink label-caps rounded-full px-2 py-0.5 text-[10px] ${
+                              c.matched ? "bg-accent" : "bg-background"
+                            }`}
+                          >
+                            {c.matched ? "Matched" : "Needs work"} · {c.score}%
+                          </span>
+                        </div>
+                        <div className="ink mt-2 h-2 w-full overflow-hidden rounded-full bg-background">
+                          <div
+                            className={c.matched ? "h-full bg-accent" : "h-full bg-muted-foreground"}
+                            style={{ width: `${c.score}%` }}
+                          />
+                        </div>
+                        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{c.note}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="ink mt-4 rounded-xl bg-card p-3">
+                    <p className="label-caps text-[11px]">Tips for your next attempt</p>
+                    <ul className="mt-2 space-y-1.5 text-xs leading-relaxed">
+                      {result.tips.map((t) => (
+                        <li key={t} className="flex gap-2">
+                          <span aria-hidden>→</span>
+                          <span>{t}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
                   {!user ? (
-                    <p className="mt-2 text-xs">
+                    <p className="mt-3 text-xs">
                       <Link to="/auth" className="underline">
                         Sign in
                       </Link>{" "}
@@ -269,6 +313,7 @@ function Practice() {
                   ) : null}
                 </div>
               ) : null}
+
             </section>
 
             <section className="ink-lg rounded-2xl bg-card p-4 sm:p-6">
