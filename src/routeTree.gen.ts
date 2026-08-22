@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as ConnectIndexRouteImport } from './routes/connect.index'
+import { Route as ConnectRoomIdRouteImport } from './routes/connect.$roomId'
 import { Route as LearnIndexRouteImport } from './routes/learn.index'
 import { Route as LearnLessonSlugRouteImport } from './routes/learn.$lessonSlug'
 
@@ -42,6 +43,11 @@ const ConnectIndexRoute = ConnectIndexRouteImport.update({
   path: '/connect/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConnectRoomIdRoute = ConnectRoomIdRouteImport.update({
+  id: '/connect/$roomId',
+  path: '/connect/$roomId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LearnIndexRoute = LearnIndexRouteImport.update({
   id: '/learn/',
   path: '/learn/',
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
   '/practice': typeof PracticeRoute
+  '/connect/$roomId': typeof ConnectRoomIdRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/connect/': typeof ConnectIndexRoute
   '/learn/': typeof LearnIndexRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
   '/practice': typeof PracticeRoute
+  '/connect/$roomId': typeof ConnectRoomIdRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/connect': typeof ConnectIndexRoute
   '/learn': typeof LearnIndexRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
   '/practice': typeof PracticeRoute
+  '/connect/$roomId': typeof ConnectRoomIdRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/connect/': typeof ConnectIndexRoute
   '/learn/': typeof LearnIndexRoute
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/practice'
+    | '/connect/$roomId'
     | '/learn/$lessonSlug'
     | '/connect/'
     | '/learn/'
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/practice'
+    | '/connect/$roomId'
     | '/learn/$lessonSlug'
     | '/connect'
     | '/learn'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/practice'
+    | '/connect/$roomId'
     | '/learn/$lessonSlug'
     | '/connect/'
     | '/learn/'
@@ -116,6 +128,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRoute
   PracticeRoute: typeof PracticeRoute
+  ConnectRoomIdRoute: typeof ConnectRoomIdRoute
   LearnLessonSlugRoute: typeof LearnLessonSlugRoute
   ConnectIndexRoute: typeof ConnectIndexRoute
   LearnIndexRoute: typeof LearnIndexRoute
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConnectIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/connect/$roomId': {
+      id: '/connect/$roomId'
+      path: '/connect/$roomId'
+      fullPath: '/connect/$roomId'
+      preLoaderRoute: typeof ConnectRoomIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/learn/': {
       id: '/learn/'
       path: '/learn'
@@ -180,6 +200,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRoute,
   PracticeRoute: PracticeRoute,
+  ConnectRoomIdRoute: ConnectRoomIdRoute,
   LearnLessonSlugRoute: LearnLessonSlugRoute,
   ConnectIndexRoute: ConnectIndexRoute,
   LearnIndexRoute: LearnIndexRoute,
