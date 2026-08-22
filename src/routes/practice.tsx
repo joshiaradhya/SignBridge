@@ -29,20 +29,8 @@ export const Route = createFileRoute("/practice")({
   component: Practice,
 });
 
-type Result = { score: number; feedback: string };
+import { analyseAttempt, type Result } from "@/lib/attempt-analysis";
 
-function feedbackFor(score: number, energy: number): string {
-  if (energy < 0.6) {
-    return "Barely any movement was detected — make sure your hands are inside the frame and repeat the motion more fully.";
-  }
-  if (score >= 90) {
-    return "Great form. The motion is clear and well-paced — hold the end position for a beat longer to finish cleanly.";
-  }
-  if (score >= 75) {
-    return "Solid attempt. Slow the movement slightly and keep your hand inside the frame for the whole gesture.";
-  }
-  return "The motion looks rushed or partly out of frame. Re-read the movement notes and try again at half speed.";
-}
 
 function Practice() {
   const { sign: signParam } = Route.useSearch();
