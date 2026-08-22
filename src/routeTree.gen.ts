@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AchievementsRouteImport } from './routes/achievements'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as ConnectIndexRouteImport } from './routes/connect.index'
 import { Route as ConnectRoomIdRouteImport } from './routes/connect.$roomId'
@@ -37,6 +38,11 @@ const AuthRoute = AuthRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FriendsRoute = FriendsRouteImport.update({
+  id: '/friends',
+  path: '/friends',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PracticeRoute = PracticeRouteImport.update({
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/achievements': typeof AchievementsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/friends': typeof FriendsRoute
   '/practice': typeof PracticeRoute
   '/connect/$roomId': typeof ConnectRoomIdRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/achievements': typeof AchievementsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/friends': typeof FriendsRoute
   '/practice': typeof PracticeRoute
   '/connect/$roomId': typeof ConnectRoomIdRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/achievements': typeof AchievementsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/friends': typeof FriendsRoute
   '/practice': typeof PracticeRoute
   '/connect/$roomId': typeof ConnectRoomIdRoute
   '/learn/$lessonSlug': typeof LearnLessonSlugRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/achievements'
     | '/auth'
     | '/dashboard'
+    | '/friends'
     | '/practice'
     | '/connect/$roomId'
     | '/learn/$lessonSlug'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/achievements'
     | '/auth'
     | '/dashboard'
+    | '/friends'
     | '/practice'
     | '/connect/$roomId'
     | '/learn/$lessonSlug'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/achievements'
     | '/auth'
     | '/dashboard'
+    | '/friends'
     | '/practice'
     | '/connect/$roomId'
     | '/learn/$lessonSlug'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   AchievementsRoute: typeof AchievementsRoute
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRoute
+  FriendsRoute: typeof FriendsRoute
   PracticeRoute: typeof PracticeRoute
   ConnectRoomIdRoute: typeof ConnectRoomIdRoute
   LearnLessonSlugRoute: typeof LearnLessonSlugRoute
@@ -175,6 +188,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/friends': {
+      id: '/friends'
+      path: '/friends'
+      fullPath: '/friends'
+      preLoaderRoute: typeof FriendsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/practice': {
@@ -220,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   AchievementsRoute: AchievementsRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRoute,
+  FriendsRoute: FriendsRoute,
   PracticeRoute: PracticeRoute,
   ConnectRoomIdRoute: ConnectRoomIdRoute,
   LearnLessonSlugRoute: LearnLessonSlugRoute,
