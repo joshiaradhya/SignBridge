@@ -8,6 +8,7 @@ export type Lesson = {
   summary: string;
   source: string;
   order_index: number;
+  course_id: string | null;
 };
 
 export type Sign = {
