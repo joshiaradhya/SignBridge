@@ -454,3 +454,24 @@ function Practice() {
     </div>
   );
 }
+
+function Chip({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`ink ink-press label-caps rounded-full px-3 py-1 text-[11px] ${
+        active ? "bg-primary" : "bg-background"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
