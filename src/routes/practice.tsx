@@ -48,10 +48,41 @@ function Practice() {
   const [countdown, setCountdown] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
   const [selected, setSelected] = useState<string | undefined>(signParam);
+  const [lang, setLang] = useState<"all" | "ASL" | "ISL">("all");
+  const [level, setLevel] = useState<"all" | Difficulty>("all");
+  const [search, setSearch] = useState("");
 
+  const courses = useQuery(coursesQuery);
   const allSigns = signs.data ?? [];
+  const allLessons = lessons.data ?? [];
+  const allCourses = courses.data ?? [];
   const activeSign = allSigns.find((s) => s.slug === (selected ?? signParam)) ?? allSigns[0];
-  const activeLesson = (lessons.data ?? []).find((l) => l.id === activeSign?.lesson_id);
+  const activeLesson = allLessons.find((l) => l.id === activeSign?.lesson_id);
+
+  const groups = allLessons
+    .map((lesson) => {
+      const course = allCourses.find((c) => c.id === lesson.course_id);
+      const language = course?.language ?? lesson.language;
+      const q = search.trim().toLowerCase();
+      const items = allSigns.filter(
+        (s) =>
+          s.lesson_id === lesson.id &&
+          (!q || s.gloss.toLowerCase().includes(q) || s.meaning.toLowerCase().includes(q)),
+      );
+      return {
+        key: lesson.id,
+        title: (course ? `${course.title} · ${lesson.title}` : lesson.title).toUpperCase(),
+        language,
+        difficulty: course?.difficulty ?? null,
+        signs: items,
+      };
+    })
+    .filter(
+      (g) =>
+        g.signs.length > 0 &&
+        (lang === "all" || g.language === lang) &&
+        (level === "all" || g.difficulty === level),
+    );
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
