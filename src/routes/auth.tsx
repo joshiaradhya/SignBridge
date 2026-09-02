@@ -67,11 +67,11 @@ function AuthPage() {
     setBusy(false);
   }
 
-  async function google() {
-    const result = await lovable.auth.signInWithOAuth("google", {
+  async function oauth(provider: "google" | "apple" | "microsoft", label: string) {
+    const result = await lovable.auth.signInWithOAuth(provider, {
       redirect_uri: `${window.location.origin}${redirectTo ?? ""}`,
     });
-    if (result.error) setMessage("Google sign-in failed. Try again.");
+    if (result.error) setMessage(`${label} sign-in failed. Try again.`);
   }
 
   return (
