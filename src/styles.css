@@ -292,3 +292,101 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-auth-swap, .animate-pop, .auth-flash-card, .auth-flash-veil { animation-duration: 0.01ms; }
 }
+
+/* ---- Global interaction animations ---- */
+@utility hover-lift {
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.8, 0.3, 1),
+    box-shadow 160ms cubic-bezier(0.2, 0.8, 0.3, 1),
+    background-color 160ms ease;
+}
+
+@utility ink-focus {
+  transition:
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+/* Cards and boxes react on hover */
+.ink,
+.ink-lg {
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.8, 0.3, 1),
+    box-shadow 160ms cubic-bezier(0.2, 0.8, 0.3, 1),
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.ink:hover:not(:disabled),
+.ink-lg:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 6px 6px 0 0 var(--color-border);
+}
+
+.ink-lg:hover {
+  box-shadow: 9px 9px 0 0 var(--color-border);
+}
+
+/* Pressable elements still collapse inward on hover/press */
+.ink-press:hover,
+.ink.ink-press:hover:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 0 var(--color-border);
+}
+
+.ink-press:active,
+.ink.ink-press:active:not(:disabled) {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 0 var(--color-border);
+}
+
+/* Inputs, textareas and selects */
+input,
+textarea,
+select {
+  transition:
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    border-color 160ms ease;
+}
+
+input:hover:not(:disabled),
+textarea:hover:not(:disabled),
+select:hover:not(:disabled) {
+  border-color: var(--color-border);
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 0 var(--color-border);
+}
+
+/* Keyboard focus ring for interactive elements */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-ring, var(--color-border));
+  outline-offset: 2px;
+}
+
+/* Links get a subtle nudge */
+a:not(.ink):not(.ink-lg):hover {
+  transition: opacity 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink,
+  .ink-lg,
+  input,
+  textarea,
+  select {
+    transition: none;
+  }
+  .ink:hover,
+  .ink-lg:hover,
+  .ink-press:hover,
+  .ink-press:active {
+    transform: none;
+  }
+}
