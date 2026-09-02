@@ -318,31 +318,78 @@ function Practice() {
 
             <section className="ink-lg rounded-2xl bg-card p-4 sm:p-6">
               <h2 className="text-xl">REFERENCE</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Categorised the same way as the course catalogue — filter, then pick a sign.
+              </p>
 
-              <div className="mt-4 grid gap-2">
-                {allSigns.map((s) => {
-                  const isActive = s.id === activeSign?.id;
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => {
-                        setSelected(s.slug);
-                        setResult(null);
-                      }}
-                      className={`ink rounded-xl px-3 py-2 text-left text-sm ${
-                        isActive ? "bg-accent" : "bg-background"
-                      }`}
-                    >
-                      <span className="label-caps text-[10px] text-muted-foreground">
-                        {(lessons.data ?? []).find((l) => l.id === s.lesson_id)?.language}
-                      </span>
-                      <span className="label-caps ml-2 text-xs">{s.gloss}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">{s.meaning}</span>
-
-                    </button>
-                  );
-                })}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Chip active={lang === "all"} onClick={() => setLang("all")} label="All" />
+                <Chip active={lang === "ASL"} onClick={() => setLang("ASL")} label="ASL" />
+                <Chip active={lang === "ISL"} onClick={() => setLang("ISL")} label="ISL" />
               </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Chip active={level === "all"} onClick={() => setLevel("all")} label="Any level" />
+                {DIFFICULTIES.map((d) => (
+                  <Chip
+                    key={d.key}
+                    active={level === d.key}
+                    onClick={() => setLevel(d.key)}
+                    label={d.label}
+                  />
+                ))}
+              </div>
+              <div className="mt-2">
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search a sign…"
+                  className="ink ink-focus w-full rounded-xl bg-background px-3 py-2 text-sm outline-none"
+                />
+              </div>
+
+              <div className="mt-4 max-h-[420px] space-y-4 overflow-y-auto pr-1">
+                {groups.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No signs match these filters yet — try another category.
+                  </p>
+                ) : null}
+                {groups.map((g) => (
+                  <div key={g.key}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="label-caps text-[11px]">{g.title}</span>
+                      <span className="ink label-caps rounded-full bg-background px-2 py-0.5 text-[9px]">
+                        {g.language}
+                      </span>
+                      {g.difficulty ? (
+                        <span className="label-caps text-[9px] text-muted-foreground">
+                          {g.difficulty}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-2 grid gap-2">
+                      {g.signs.map((s) => {
+                        const isActive = s.id === activeSign?.id;
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => {
+                              setSelected(s.slug);
+                              setResult(null);
+                            }}
+                            className={`ink ink-press hover-lift rounded-xl px-3 py-2 text-left text-sm ${
+                              isActive ? "bg-accent" : "bg-background"
+                            }`}
+                          >
+                            <span className="label-caps text-xs">{s.gloss}</span>
+                            <span className="ml-2 text-xs text-muted-foreground">{s.meaning}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
 
               {activeSign ? (
                 <div className="mt-5">
