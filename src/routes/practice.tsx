@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
 import { signsQuery, lessonsQuery } from "@/lib/signbridge";
+import { coursesQuery, DIFFICULTIES, type Difficulty } from "@/lib/learning";
 import { signImage } from "@/lib/sign-images";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
