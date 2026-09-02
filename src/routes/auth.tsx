@@ -129,12 +129,26 @@ function AuthPage() {
             <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
           </div>
 
-          <button
-            onClick={google}
-            className="ink ink-press label-caps w-full rounded-xl bg-background px-5 py-3 text-sm"
-          >
-            Continue with Google
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={() => oauth("google", "Google")}
+              className="ink ink-press label-caps w-full rounded-xl bg-background px-5 py-3 text-sm"
+            >
+              Continue with Google
+            </button>
+            <button
+              onClick={() => oauth("apple", "Apple")}
+              className="ink ink-press label-caps w-full rounded-xl bg-background px-5 py-3 text-sm"
+            >
+              Continue with Apple
+            </button>
+            <button
+              onClick={() => oauth("microsoft", "Microsoft")}
+              className="ink ink-press label-caps w-full rounded-xl bg-background px-5 py-3 text-sm"
+            >
+              Continue with Microsoft
+            </button>
+          </div>
 
           {message ? <p className="ink mt-4 rounded-xl bg-muted p-3 text-sm">{message}</p> : null}
 
