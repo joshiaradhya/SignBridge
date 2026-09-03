@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
 import { signsQuery, lessonsQuery } from "@/lib/signbridge";
 import { coursesQuery, DIFFICULTIES, type Difficulty } from "@/lib/learning";
-import { signImage } from "@/lib/sign-images";
+import { SignVisual } from "@/components/SignVisual";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { analyseAttempt, type Result } from "@/lib/attempt-analysis";
@@ -426,15 +426,9 @@ function Practice() {
               {activeSign ? (
                 <div className="mt-5">
                   <div className="ink overflow-hidden rounded-xl">
-                    <img
-                      src={signImage(activeSign.image_key)}
-                      alt={`Reference illustration for the sign ${activeSign.gloss}`}
-                      width={1024}
-                      height={768}
-                      loading="lazy"
-                      className="w-full"
-                    />
+                    <SignVisual sign={activeSign} />
                   </div>
+
                   <p className="mt-3 text-sm leading-relaxed">{activeSign.movement}</p>
                   {activeLesson ? (
                     <Link

@@ -62,10 +62,12 @@ function CallRoom() {
   const [connected, setConnected] = useState(false);
   const [muted, setMuted] = useState(false);
   const [camOff, setCamOff] = useState(false);
-  const [status, setStatus] = useState("Starting camera…");
+  const [status, setStatus] = useState("Camera not started");
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [detecting, setDetecting] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
+  const [armed, setArmed] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
 
   const pushCaption = useCallback((c: Caption) => {
     setCaptions((prev) => [...prev.slice(-40), c]);
@@ -75,34 +77,59 @@ function CallRoom() {
   const userId = user?.id ?? null;
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !armed) return;
     let cancelled = false;
     let cleanup = () => {};
 
     (async () => {
+      // Ask for camera + mic FIRST, from the user's click, so the browser
+      // actually shows the permission prompt (iframes and Safari require a gesture).
+      let stream: MediaStream | null = null;
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
+        }
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      } catch (err) {
+        const name = (err as { name?: string })?.name ?? "";
+        setMediaError(
+          name === "NotAllowedError" || name === "SecurityError"
+            ? "Camera and microphone access was blocked. Allow it in your browser's address bar (or open this page in a new tab) and try again."
+            : name === "NotFoundError" || name === "OverconstrainedError"
+              ? "No camera or microphone was found on this device."
+              : name === "NotReadableError"
+                ? "Your camera is already in use by another app. Close it and try again."
+                : "Could not start your camera. Open this page in a new browser tab and try again.",
+        );
+        setArmed(false);
+        return;
+      }
+      if (cancelled) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      setMediaError(null);
+      streamRef.current = stream;
+      if (localVideo.current) localVideo.current.srcObject = stream;
+      setStatus("Joining the room…");
+
       let state;
       try {
         state = await roomStateCall({ data: { roomId } });
       } catch {
+        stream.getTracks().forEach((t) => t.stop());
         setStatus("You are not part of this call.");
         return;
       }
-      if (cancelled) return;
+      if (cancelled) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       setPrompt(state.room.conversation_prompt);
       setMode(state.room.mode === "private" ? "private" : "random");
       setPeerId(state.peerId);
-
-      const stream = await navigator.mediaDevices
-        .getUserMedia({ video: true, audio: true })
-        .catch(() => null);
-      if (!stream || cancelled) {
-        stream?.getTracks().forEach((t) => t.stop());
-        if (!stream) setStatus("Camera or microphone blocked — allow access and reload.");
-        return;
-      }
-      streamRef.current = stream;
-      if (localVideo.current) localVideo.current.srcObject = stream;
       setStatus("Connecting to your partner…");
+
 
       const pc = new RTCPeerConnection({
         iceServers: [
@@ -286,12 +313,12 @@ function CallRoom() {
       cancelled = true;
       cleanup();
     };
-  }, [roomId, userId, roomStateCall, pushCaption]);
+  }, [roomId, userId, armed, roomStateCall, pushCaption]);
 
 
   // ---- local sign recognition ----
   useEffect(() => {
-    if (!user) return;
+    if (!user || !armed) return;
     let raf = 0;
     let stop = false;
     let buffer: Landmark[][] = [];
@@ -388,6 +415,31 @@ function CallRoom() {
             Conversation starter: <strong>{prompt}</strong>
           </p>
         ) : null}
+
+        {!armed ? (
+          <section className="ink-lg mt-6 rounded-2xl bg-card p-6">
+            <h2 className="text-xl">READY TO JOIN?</h2>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+              This call needs your camera and microphone. Press the button below and your browser
+              will ask for permission — nothing is recorded, and sign recognition runs on your own
+              device.
+            </p>
+            {mediaError ? (
+              <p className="ink mt-4 rounded-xl bg-destructive/20 p-3 text-sm">{mediaError}</p>
+            ) : null}
+            <button
+              className="ink ink-press label-caps mt-5 rounded-xl bg-primary px-5 py-3 text-sm"
+              onClick={() => {
+                setMediaError(null);
+                setStatus("Waiting for camera permission…");
+                setArmed(true);
+              }}
+            >
+              {mediaError ? "Try again" : "Allow camera & mic and join"}
+            </button>
+          </section>
+        ) : null}
+
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <div className="ink-lg relative overflow-hidden rounded-2xl bg-card">
