@@ -18,6 +18,10 @@ export const signImages: Record<string, string> = {
   "isl-water": islWater,
 };
 
+export function hasSignPhoto(key: string): boolean {
+  return Boolean(signImages[key]);
+}
+
 export function signImage(key: string): string {
   return signImages[key] ?? aslHello;
 }
