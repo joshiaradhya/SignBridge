@@ -75,34 +75,59 @@ function CallRoom() {
   const userId = user?.id ?? null;
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !armed) return;
     let cancelled = false;
     let cleanup = () => {};
 
     (async () => {
+      // Ask for camera + mic FIRST, from the user's click, so the browser
+      // actually shows the permission prompt (iframes and Safari require a gesture).
+      let stream: MediaStream | null = null;
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
+        }
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      } catch (err) {
+        const name = (err as { name?: string })?.name ?? "";
+        setMediaError(
+          name === "NotAllowedError" || name === "SecurityError"
+            ? "Camera and microphone access was blocked. Allow it in your browser's address bar (or open this page in a new tab) and try again."
+            : name === "NotFoundError" || name === "OverconstrainedError"
+              ? "No camera or microphone was found on this device."
+              : name === "NotReadableError"
+                ? "Your camera is already in use by another app. Close it and try again."
+                : "Could not start your camera. Open this page in a new browser tab and try again.",
+        );
+        setArmed(false);
+        return;
+      }
+      if (cancelled) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      setMediaError(null);
+      streamRef.current = stream;
+      if (localVideo.current) localVideo.current.srcObject = stream;
+      setStatus("Joining the room…");
+
       let state;
       try {
         state = await roomStateCall({ data: { roomId } });
       } catch {
+        stream.getTracks().forEach((t) => t.stop());
         setStatus("You are not part of this call.");
         return;
       }
-      if (cancelled) return;
+      if (cancelled) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       setPrompt(state.room.conversation_prompt);
       setMode(state.room.mode === "private" ? "private" : "random");
       setPeerId(state.peerId);
-
-      const stream = await navigator.mediaDevices
-        .getUserMedia({ video: true, audio: true })
-        .catch(() => null);
-      if (!stream || cancelled) {
-        stream?.getTracks().forEach((t) => t.stop());
-        if (!stream) setStatus("Camera or microphone blocked — allow access and reload.");
-        return;
-      }
-      streamRef.current = stream;
-      if (localVideo.current) localVideo.current.srcObject = stream;
       setStatus("Connecting to your partner…");
+
 
       const pc = new RTCPeerConnection({
         iceServers: [
