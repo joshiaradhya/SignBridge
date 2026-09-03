@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
 import { RequireAuth } from "@/components/RequireAuth";
 import { lessonsQuery, signsQuery, type Sign } from "@/lib/signbridge";
-import { signImage } from "@/lib/sign-images";
+import { SignVisual } from "@/components/SignVisual";
 
 export const Route = createFileRoute("/learn/$lessonSlug")({
   head: () => ({

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
 import { signsQuery, lessonsQuery } from "@/lib/signbridge";
 import { coursesQuery, DIFFICULTIES, type Difficulty } from "@/lib/learning";
-import { signImage } from "@/lib/sign-images";
+import { SignVisual } from "@/components/SignVisual";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { analyseAttempt, type Result } from "@/lib/attempt-analysis";
