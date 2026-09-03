@@ -66,6 +66,8 @@ function CallRoom() {
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [detecting, setDetecting] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
+  const [armed, setArmed] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
 
   const pushCaption = useCallback((c: Caption) => {
     setCaptions((prev) => [...prev.slice(-40), c]);
@@ -311,7 +313,7 @@ function CallRoom() {
       cancelled = true;
       cleanup();
     };
-  }, [roomId, userId, roomStateCall, pushCaption]);
+  }, [roomId, userId, armed, roomStateCall, pushCaption]);
 
 
   // ---- local sign recognition ----
