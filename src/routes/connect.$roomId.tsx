@@ -62,7 +62,7 @@ function CallRoom() {
   const [connected, setConnected] = useState(false);
   const [muted, setMuted] = useState(false);
   const [camOff, setCamOff] = useState(false);
-  const [status, setStatus] = useState("Starting camera…");
+  const [status, setStatus] = useState("Camera not started");
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [detecting, setDetecting] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
