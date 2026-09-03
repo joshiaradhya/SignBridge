@@ -318,7 +318,7 @@ function CallRoom() {
 
   // ---- local sign recognition ----
   useEffect(() => {
-    if (!user) return;
+    if (!user || !armed) return;
     let raf = 0;
     let stop = false;
     let buffer: Landmark[][] = [];
@@ -415,6 +415,31 @@ function CallRoom() {
             Conversation starter: <strong>{prompt}</strong>
           </p>
         ) : null}
+
+        {!armed ? (
+          <section className="ink-lg mt-6 rounded-2xl bg-card p-6">
+            <h2 className="text-xl">READY TO JOIN?</h2>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+              This call needs your camera and microphone. Press the button below and your browser
+              will ask for permission — nothing is recorded, and sign recognition runs on your own
+              device.
+            </p>
+            {mediaError ? (
+              <p className="ink mt-4 rounded-xl bg-destructive/20 p-3 text-sm">{mediaError}</p>
+            ) : null}
+            <button
+              className="ink ink-press label-caps mt-5 rounded-xl bg-primary px-5 py-3 text-sm"
+              onClick={() => {
+                setMediaError(null);
+                setStatus("Waiting for camera permission…");
+                setArmed(true);
+              }}
+            >
+              {mediaError ? "Try again" : "Allow camera & mic and join"}
+            </button>
+          </section>
+        ) : null}
+
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <div className="ink-lg relative overflow-hidden rounded-2xl bg-card">
