@@ -48,15 +48,9 @@ function SignEntry({ sign, index }: { sign: Sign; index: number }) {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="ink overflow-hidden rounded-xl bg-background">
-          <img
-            src={signImage(sign.image_key)}
-            alt={`Annotated illustration showing how to sign ${sign.gloss}: ${sign.movement}`}
-            width={1024}
-            height={768}
-            loading="lazy"
-            className="w-full"
-          />
+          <SignVisual sign={sign} />
         </div>
+
 
         <div className="grid gap-3">
           <Field label="Handshape" value={sign.handshape} />
