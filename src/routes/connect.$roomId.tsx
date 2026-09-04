@@ -307,10 +307,12 @@ function CallRoom() {
         })
         .on("broadcast", { event: "hello" }, ({ payload }) => {
           if (!payload?.from || payload.from === userId) return;
+          const isNewPeer = peer !== payload.from;
           peer = payload.from;
           setPeerId(payload.from);
           if (!payload.reply) send("hello", { from: userId, reply: true });
-          void startOffer();
+          // A peer that just (re)appeared may have missed our earlier offer.
+          void startOffer(!isNewPeer);
         })
         .subscribe((s) => {
           if (s !== "SUBSCRIBED") return;
@@ -329,12 +331,25 @@ function CallRoom() {
 
       // Re-announce ourselves until the media actually flows. This covers the case
       // where one side subscribed to the channel before the other was listening,
-      // and retries the offer if the first one was lost.
+      // and re-sends the offer if the first one was lost (which is what stalled
+      // desktop-to-desktop calls: both tabs subscribe at almost the same moment).
+      let beats = 0;
       const heartbeat = window.setInterval(() => {
-        if (pc.connectionState === "connected" || pc.connectionState === "closed") return;
+        const s = pc.connectionState;
+        if (s === "connected" || s === "closed") {
+          beats = 0;
+          return;
+        }
+        beats += 1;
         send("hello", { from: userId, reply: false });
-        void startOffer();
+        // Still stuck after ~10s: tear the negotiation down and try fresh ICE.
+        if (beats % 4 === 0 && (pc.signalingState === "have-local-offer" || s === "failed")) {
+          void renegotiate();
+        } else {
+          void startOffer(true);
+        }
       }, 2500);
+
 
       cleanup = () => {
         window.clearInterval(heartbeat);
