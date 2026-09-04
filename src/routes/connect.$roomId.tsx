@@ -7,9 +7,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
   leaveRoomFn,
+  getCallSignalsFn,
   reportPeerFn,
   roomStateFn,
   saveCaptionFn,
+  sendCallSignalFn,
   translateSignFn,
 } from "@/lib/signconnect.functions";
 import { classifySegment, loadLandmarker, motionEnergy, type Landmark } from "@/lib/sign-recognizer";
@@ -48,13 +50,15 @@ function CallRoom() {
   const translateSign = useServerFn(translateSignFn);
   const saveCaption = useServerFn(saveCaptionFn);
   const leaveRoomCall = useServerFn(leaveRoomFn);
+  const getCallSignals = useServerFn(getCallSignalsFn);
+  const sendCallSignal = useServerFn(sendCallSignalFn);
   const reportPeer = useServerFn(reportPeerFn);
 
   // useServerFn returns a new function identity on every render. Keeping them in a
   // ref stops the call/recognition effects from tearing down the camera and the peer
   // connection each time a caption or status update re-renders this component.
-  const fns = useRef({ roomStateCall, translateSign, saveCaption });
-  fns.current = { roomStateCall, translateSign, saveCaption };
+  const fns = useRef({ roomStateCall, translateSign, saveCaption, getCallSignals, sendCallSignal });
+  fns.current = { roomStateCall, translateSign, saveCaption, getCallSignals, sendCallSignal };
 
 
   const localVideo = useRef<HTMLVideoElement | null>(null);
@@ -233,7 +237,17 @@ function CallRoom() {
       const outbox: { event: string; payload: Record<string, unknown> }[] = [];
       const send = (event: string, payload: Record<string, unknown>) => {
         const message = { ...payload, from: userId, to: peer };
-        if (subscribed) void channel.send({ type: "broadcast", event, payload: message });
+        if (event === "offer" || event === "answer" || event === "ice") {
+          if (!peer) return;
+          void fns.current.sendCallSignal({
+            data: {
+              roomId,
+              recipientId: peer,
+              signalType: event,
+              payload: message,
+            },
+          });
+        } else if (subscribed) void channel.send({ type: "broadcast", event, payload: message });
         else outbox.push({ event, payload: message });
       };
 
@@ -245,6 +259,7 @@ function CallRoom() {
       let makingOffer = false;
       let ignoreOffer = false;
       const pendingIce: RTCIceCandidateInit[] = [];
+      const seenSignals = new Set<number>();
 
       const drainIce = async () => {
         while (pendingIce.length) {
@@ -364,49 +379,49 @@ function CallRoom() {
         }
       };
 
-      channel
-        .on("broadcast", { event: "offer" }, async ({ payload }) => {
-          if (!addressedToMe(payload)) return;
-          peer = payload.from;
-          setPeerId(payload.from);
-          const polite = userId < payload.from;
+      const receiveSignal = async (row: {
+        id: number;
+        sender_id: string;
+        signal_type: string;
+        payload: unknown;
+      }) => {
+        if (seenSignals.has(row.id) || row.sender_id === userId) return;
+        seenSignals.add(row.id);
+        const payload = row.payload as {
+          from?: string;
+          to?: string | null;
+          sdp?: RTCSessionDescriptionInit;
+          candidate?: RTCIceCandidateInit;
+        };
+        if (!addressedToMe(payload)) return;
+        peer = row.sender_id;
+        setPeerId(row.sender_id);
+
+        if (row.signal_type === "offer" && payload.sdp) {
+          const polite = userId < row.sender_id;
           const collision = makingOffer || pc.signalingState !== "stable";
           ignoreOffer = !polite && collision;
           if (ignoreOffer) return;
           try {
-            if (collision) {
-              await pc.setLocalDescription({ type: "rollback" } as RTCSessionDescriptionInit);
-            }
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+            if (collision) await pc.setLocalDescription({ type: "rollback" });
+            await pc.setRemoteDescription(payload.sdp);
             await drainIce();
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
+            await pc.setLocalDescription(await pc.createAnswer());
             await waitForIceGathering();
             send("answer", { sdp: pc.localDescription });
           } catch {
-            /* ignore malformed offer */
+            /* a newer persisted offer can still complete the call */
           }
-        })
-        .on("broadcast", { event: "answer" }, async ({ payload }) => {
-          if (!addressedToMe(payload)) return;
+        } else if (row.signal_type === "answer" && payload.sdp) {
           if (pc.signalingState !== "have-local-offer") return;
-          try {
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-            await drainIce();
-          } catch {
-            /* ignore */
-          }
-        })
-        .on("broadcast", { event: "ice" }, async ({ payload }) => {
-          if (!addressedToMe(payload)) return;
-          if (!pc.remoteDescription) {
-            pendingIce.push(payload.candidate);
-            return;
-          }
-          await pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(() => {
-            if (!ignoreOffer) pendingIce.push(payload.candidate);
-          });
-        })
+          await pc.setRemoteDescription(payload.sdp).then(drainIce).catch(() => {});
+        } else if (row.signal_type === "ice" && payload.candidate) {
+          if (!pc.remoteDescription) pendingIce.push(payload.candidate);
+          else await pc.addIceCandidate(payload.candidate).catch(() => pendingIce.push(payload.candidate as RTCIceCandidateInit));
+        }
+      };
+
+      channel
         .on("broadcast", { event: "caption" }, ({ payload }) => {
           pushCaption(payload as Caption);
         })
@@ -449,6 +464,22 @@ function CallRoom() {
           void startOffer();
         });
 
+      let lastSignalId = 0;
+      let readingSignals = false;
+      const signalPoll = window.setInterval(async () => {
+        if (readingSignals || pc.signalingState === "closed") return;
+        readingSignals = true;
+        try {
+          const rows = await fns.current.getCallSignals({ data: { roomId, afterId: lastSignalId } });
+          for (const row of rows) {
+            lastSignalId = Math.max(lastSignalId, Number(row.id));
+            await receiveSignal(row as Parameters<typeof receiveSignal>[0]);
+          }
+        } finally {
+          readingSignals = false;
+        }
+      }, 350);
+
       // Keep announcing ourselves until the handshake completes, but leave a
       // negotiation that is already in flight alone: constantly re-offering (which
       // is what the old heartbeat did) restarts ICE every second and is exactly why
@@ -484,6 +515,7 @@ function CallRoom() {
 
       cleanup = () => {
         window.clearInterval(heartbeat);
+        window.clearInterval(signalPoll);
         pc.close();
         pcRef.current = null;
         channelRef.current = null;

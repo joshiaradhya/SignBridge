@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Json } from "@/integrations/supabase/types";
 
 export const findPartnerFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -54,6 +55,27 @@ export const leaveRoomFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { leaveRoom } = await import("./signconnect.server");
     return leaveRoom(context.userId, data.roomId);
+  });
+
+export const sendCallSignalFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    roomId: string;
+    recipientId: string;
+    signalType: "offer" | "answer" | "ice";
+    payload: Json;
+  }) => d)
+  .handler(async ({ data, context }) => {
+    const { sendCallSignal } = await import("./signconnect.server");
+    return sendCallSignal(context.userId, data);
+  });
+
+export const getCallSignalsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { roomId: string; afterId: number }) => d)
+  .handler(async ({ data, context }) => {
+    const { getCallSignals } = await import("./signconnect.server");
+    return getCallSignals(context.userId, data.roomId, data.afterId);
   });
 
 export const saveCaptionFn = createServerFn({ method: "POST" })
