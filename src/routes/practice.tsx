@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
 import { signsQuery, lessonsQuery } from "@/lib/signbridge";
-import { coursesQuery, DIFFICULTIES, type Difficulty } from "@/lib/learning";
+import { coursesQuery, DIFFICULTIES, recordActivity, type Difficulty } from "@/lib/learning";
+
 import { SignVisual } from "@/components/SignVisual";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
