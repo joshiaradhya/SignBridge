@@ -17,6 +17,7 @@ type HandPose = {
 const extended = (spread = 0): FingerPose => ({ length: 1, bend: 0, spread });
 const curled = (spread = 0): FingerPose => ({ length: 0.56, bend: 24, spread });
 const hooked = (spread = 0): FingerPose => ({ length: 0.78, bend: 48, spread });
+const DEFAULT_POSE: HandPose = { fingers: [extended(-14), extended(-5), extended(5), extended(14)], thumb: "open" };
 
 const LETTER_POSES: Record<string, HandPose> = {
   A: { fingers: [curled(-4), curled(-1), curled(2), curled(5)], thumb: "side" },
@@ -48,7 +49,7 @@ const LETTER_POSES: Record<string, HandPose> = {
 };
 
 const NUMBER_POSES: Record<string, HandPose> = {
-  "0": LETTER_POSES.O,
+  "0": LETTER_POSES["O"] ?? DEFAULT_POSE,
   "1": { fingers: [extended(), curled(), curled(), curled()], thumb: "tucked" },
   "2": { fingers: [extended(-10), extended(10), curled(), curled()], thumb: "tucked" },
   "3": { fingers: [extended(-7), extended(8), curled(), curled()], thumb: "open" },
@@ -62,18 +63,20 @@ const NUMBER_POSES: Record<string, HandPose> = {
 
 function inferPose(gloss: string, handshape: string): HandPose {
   const key = gloss.trim().toUpperCase();
-  if (LETTER_POSES[key]) return LETTER_POSES[key];
-  if (NUMBER_POSES[key]) return NUMBER_POSES[key];
+  const letterPose = LETTER_POSES[key];
+  if (letterPose) return letterPose;
+  const numberPose = NUMBER_POSES[key];
+  if (numberPose) return numberPose;
 
   const text = `${gloss} ${handshape}`.toLowerCase();
-  if (/two fingers|v-hand|peace|index and middle/.test(text)) return LETTER_POSES.V;
-  if (/three/.test(text)) return NUMBER_POSES[3];
-  if (/fist|closed|a-hand/.test(text)) return LETTER_POSES.A;
-  if (/point|index/.test(text)) return NUMBER_POSES[1];
-  if (/pinch|o-hand|circle|fingertips meet/.test(text)) return LETTER_POSES.O;
-  if (/c-hand|cupped|claw|curve/.test(text)) return LETTER_POSES.C;
-  if (/thumb up|thumb out/.test(text)) return LETTER_POSES.Y;
-  return NUMBER_POSES[5];
+  if (/two fingers|v-hand|peace|index and middle/.test(text)) return LETTER_POSES["V"] ?? DEFAULT_POSE;
+  if (/three/.test(text)) return NUMBER_POSES["3"] ?? DEFAULT_POSE;
+  if (/fist|closed|a-hand/.test(text)) return LETTER_POSES["A"] ?? DEFAULT_POSE;
+  if (/point|index/.test(text)) return NUMBER_POSES["1"] ?? DEFAULT_POSE;
+  if (/pinch|o-hand|circle|fingertips meet/.test(text)) return LETTER_POSES["O"] ?? DEFAULT_POSE;
+  if (/c-hand|cupped|claw|curve/.test(text)) return LETTER_POSES["C"] ?? DEFAULT_POSE;
+  if (/thumb up|thumb out/.test(text)) return LETTER_POSES["Y"] ?? DEFAULT_POSE;
+  return DEFAULT_POSE;
 }
 
 function motionType(raw: string): "still" | "circle" | "down" | "up" | "side" | "trace" | "tap" {
@@ -157,7 +160,7 @@ export function SignDiagram({ gloss, handshape, location, movement, imageKey = "
       <path d="M18 54 H302" className="stroke-foreground/15" strokeWidth="1" />
       <text x="20" y="34" className="fill-foreground font-bold" fontSize="19">{gloss}</text>
       <text x="299" y="32" textAnchor="end" className="fill-muted-foreground" fontSize="9">{isIsl ? "TWO-HAND GUIDE" : "DOMINANT HAND"}</text>
-      {isIsl && <HumanHand pose={{ ...NUMBER_POSES[5], rotate: 4 }} x={110} y={3} scale={0.62} mirrored />}
+      {isIsl && <HumanHand pose={{ ...(NUMBER_POSES["5"] ?? DEFAULT_POSE), rotate: 4 }} x={110} y={3} scale={0.62} mirrored />}
       <HumanHand pose={pose} x={isIsl ? 208 : 157} y={8} scale={isIsl ? 0.68 : 0.78} />
       <MotionGuide kind={movementKind} />
       <g transform="translate(18 205)">
