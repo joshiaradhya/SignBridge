@@ -517,8 +517,8 @@ function Practice() {
                                 </span>
                               </button>
                             );
-                          })}
-       </main>
+                           })}
+                         </div>
                       </div>
                     ))}
                   </div>
@@ -528,7 +528,7 @@ function Practice() {
 
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
