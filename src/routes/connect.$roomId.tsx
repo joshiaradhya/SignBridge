@@ -50,6 +50,13 @@ function CallRoom() {
   const leaveRoomCall = useServerFn(leaveRoomFn);
   const reportPeer = useServerFn(reportPeerFn);
 
+  // useServerFn returns a new function identity on every render. Keeping them in a
+  // ref stops the call/recognition effects from tearing down the camera and the peer
+  // connection each time a caption or status update re-renders this component.
+  const fns = useRef({ roomStateCall, translateSign, saveCaption });
+  fns.current = { roomStateCall, translateSign, saveCaption };
+
+
   const localVideo = useRef<HTMLVideoElement | null>(null);
   const remoteVideo = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
