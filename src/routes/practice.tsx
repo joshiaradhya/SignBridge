@@ -51,6 +51,9 @@ function Practice() {
   const [lang, setLang] = useState<"all" | "ASL" | "ISL">("all");
   const [level, setLevel] = useState<"all" | Difficulty>("all");
   const [search, setSearch] = useState("");
+  // Arriving from "Try it on camera" should show that sign only, not the whole library.
+  const [browseAll, setBrowseAll] = useState(!signParam);
+
 
   const courses = useQuery(coursesQuery);
   const allSigns = signs.data ?? [];
