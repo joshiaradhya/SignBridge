@@ -227,7 +227,7 @@ function Practice() {
         feedback: analysis.feedback,
       });
 
-      // Practising a sign counts towards the lesson (and therefore the course) it belongs to.
+      // Practicing a sign counts towards the lesson (and therefore the course) it belongs to.
       const lessonId = activeSign.lesson_id;
       if (lessonId && analysis.score >= 50) {
         await recordActivity(user.id, "lesson", lessonId).catch(() => {});
