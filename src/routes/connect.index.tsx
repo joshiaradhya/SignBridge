@@ -256,7 +256,18 @@ function ConnectLanding() {
                 className="ink ink-press label-caps rounded-xl bg-accent px-5 py-3 text-sm"
                 onClick={() =>
                   run(
-                    () => findPartner({ data: { language, level, interests } }),
+                    () => {
+                      try {
+                        window.localStorage.setItem(
+                          PREFS_KEY,
+                          JSON.stringify({ language, level, interests }),
+                        );
+                      } catch {
+                        /* preferences are a nicety */
+                      }
+                      return findPartner({ data: { language, level, interests } });
+                    },
+
                     (res) => {
                       if (res.status === "matched" && res.roomId) {
                         navigate({ to: "/connect/$roomId", params: { roomId: res.roomId } });
