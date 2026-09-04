@@ -85,7 +85,7 @@ function Home() {
             <Link
               key={p.title}
               to={p.to}
-              className="ink block rounded-2xl bg-card p-6 transition-transform hover:-translate-y-1"
+              className="ink block rounded-2xl bg-card p-6 transition-transform duration-200 hover:-translate-y-1 active:translate-y-0.5 active:scale-[0.98]"
             >
               <h2 className="text-2xl">{p.title}</h2>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
