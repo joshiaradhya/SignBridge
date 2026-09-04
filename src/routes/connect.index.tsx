@@ -118,7 +118,7 @@ function ConnectLanding() {
         setQueueId(null);
         navigate({ to: "/connect/$roomId", params: { roomId: res.roomId } });
       }
-    }, 2500);
+    }, 1000);
     return () => {
       if (timer.current) clearInterval(timer.current);
     };
@@ -136,7 +136,7 @@ function ConnectLanding() {
       } catch {
         /* keep waiting */
       }
-    }, 2500);
+    }, 1000);
     return () => clearInterval(id);
   }, [createdRoom, navigate]);
 

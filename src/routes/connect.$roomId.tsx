@@ -74,6 +74,7 @@ function CallRoom() {
   const [detecting, setDetecting] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
   const [armed, setArmed] = useState(false);
+  const [joining, setJoining] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
 
   const pushCaption = useCallback((c: Caption) => {
@@ -83,48 +84,84 @@ function CallRoom() {
   // ---- room + webrtc ----
   const userId = user?.id ?? null;
 
+  async function requestMediaAndJoin() {
+    if (joining) return;
+    setJoining(true);
+    setMediaError(null);
+    setStatus("Waiting for camera permission…");
+
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
+      }
+
+      // Keep these constraints deliberately relaxed. Exact device, resolution, and
+      // frame-rate constraints can reject before browsers display their permission UI.
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+      } catch (first) {
+        const name = (first as { name?: string })?.name ?? "";
+        if (name === "NotAllowedError" || name === "SecurityError") throw first;
+
+        // A busy or unavailable microphone should not prevent sign video from working.
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: false,
+        });
+      }
+
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = stream;
+      if (localVideo.current) {
+        localVideo.current.srcObject = stream;
+        await localVideo.current.play().catch(() => {});
+      }
+      setArmed(true);
+      setStatus("Joining the room…");
+    } catch (err) {
+      const name = (err as { name?: string })?.name ?? "";
+      setMediaError(
+        name === "NotAllowedError" || name === "SecurityError"
+          ? "Camera and microphone access was blocked. Allow it in your browser's address bar, then try again."
+          : name === "NotFoundError" || name === "OverconstrainedError"
+            ? "No available camera was found on this device."
+            : name === "NotReadableError" || name === "AbortError"
+              ? "Your camera is in use by another app. Close it, then try again."
+              : "Could not start your camera. Open this page in a new browser tab and try again.",
+      );
+      setStatus("Camera not started");
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  useEffect(
+    () => () => {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!userId || !armed) return;
     let cancelled = false;
     let cleanup = () => {};
 
     (async () => {
-      // Ask for camera + mic FIRST, from the user's click, so the browser
-      // actually shows the permission prompt (iframes and Safari require a gesture).
-      let stream: MediaStream | null = null;
-      try {
-        if (!navigator.mediaDevices?.getUserMedia) {
-          throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
-        }
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        } catch (first) {
-          // Some laptops fail the combined request (mic busy / no mic) — fall back to video only.
-          const n = (first as { name?: string })?.name ?? "";
-          if (n === "NotAllowedError" || n === "SecurityError") throw first;
-          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        }
-
-      } catch (err) {
-        const name = (err as { name?: string })?.name ?? "";
-        setMediaError(
-          name === "NotAllowedError" || name === "SecurityError"
-            ? "Camera and microphone access was blocked. Allow it in your browser's address bar (or open this page in a new tab) and try again."
-            : name === "NotFoundError" || name === "OverconstrainedError"
-              ? "No camera or microphone was found on this device."
-              : name === "NotReadableError"
-                ? "Your camera is already in use by another app. Close it and try again."
-                : "Could not start your camera. Open this page in a new browser tab and try again.",
-        );
+      const stream = streamRef.current;
+      if (!stream || stream.getVideoTracks().every((track) => track.readyState === "ended")) {
         setArmed(false);
+        setStatus("Camera not started");
         return;
       }
       if (cancelled) {
-        stream.getTracks().forEach((t) => t.stop());
         return;
       }
-      setMediaError(null);
-      streamRef.current = stream;
       if (localVideo.current) localVideo.current.srcObject = stream;
       setStatus("Joining the room…");
 
@@ -132,12 +169,10 @@ function CallRoom() {
       try {
         state = await fns.current.roomStateCall({ data: { roomId } });
       } catch {
-        stream.getTracks().forEach((t) => t.stop());
         setStatus("You are not part of this call.");
         return;
       }
       if (cancelled) {
-        stream.getTracks().forEach((t) => t.stop());
         return;
       }
       setPrompt(state.room.conversation_prompt);
@@ -147,6 +182,7 @@ function CallRoom() {
 
 
       const pc = new RTCPeerConnection({
+        iceCandidatePoolSize: 10,
         iceServers: [
           { urls: ["stun:stun.l.google.com:19302", "stun:global.stun.twilio.com:3478"] },
           {
@@ -197,7 +233,8 @@ function CallRoom() {
 
       const drainIce = async () => {
         while (pendingIce.length) {
-          const c = pendingIce.shift()!;
+          const c = pendingIce.shift();
+          if (!c) continue;
           await pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
         }
       };
@@ -229,8 +266,13 @@ function CallRoom() {
       // Throw away a stalled negotiation and start a fresh one with new ICE candidates.
       const renegotiate = async () => {
         if (!peer || userId < peer) return;
+        if (makingOffer || pc.signalingState === "closed") return;
         try {
           makingOffer = true;
+          if (pc.signalingState === "have-local-offer") {
+            await pc.setLocalDescription({ type: "rollback" });
+          }
+          if (pc.signalingState !== "stable") return;
           await pc.setLocalDescription(await pc.createOffer({ iceRestart: true }));
           send("offer", { from: userId, sdp: pc.localDescription });
         } catch {
@@ -245,6 +287,9 @@ function CallRoom() {
       };
       pc.onnegotiationneeded = () => {
         void startOffer();
+      };
+      pc.onsignalingstatechange = () => {
+        if (pc.signalingState === "stable" && pc.remoteDescription) void drainIce();
       };
 
 
@@ -323,6 +368,10 @@ function CallRoom() {
           void startOffer(!isNewPeer);
         })
         .subscribe((s) => {
+          if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") {
+            setStatus("Reconnecting to the call…");
+            return;
+          }
           if (s !== "SUBSCRIBED") return;
           subscribed = true;
           void channel.send({
@@ -331,7 +380,8 @@ function CallRoom() {
             payload: { from: userId, reply: false },
           });
           while (outbox.length) {
-            const m = outbox.shift()!;
+            const m = outbox.shift();
+            if (!m) continue;
             void channel.send({ type: "broadcast", event: m.event, payload: m.payload });
           }
           void startOffer();
@@ -350,19 +400,17 @@ function CallRoom() {
         }
         beats += 1;
         send("hello", { from: userId, reply: false });
-        // Still stuck after ~10s: tear the negotiation down and try fresh ICE.
-        if (beats % 4 === 0 && (pc.signalingState === "have-local-offer" || s === "failed")) {
+        // Still stuck after ~6s: gather fresh candidates and send a new offer.
+        if (beats % 6 === 0 && (pc.signalingState === "have-local-offer" || s === "failed")) {
           void renegotiate();
         } else {
           void startOffer(true);
         }
-      }, 2500);
+      }, 1000);
 
 
       cleanup = () => {
         window.clearInterval(heartbeat);
-        stream.getTracks().forEach((t) => t.stop());
-        pc.getSenders().forEach((s) => s.track?.stop());
         pc.close();
         pcRef.current = null;
         channelRef.current = null;
@@ -489,14 +537,12 @@ function CallRoom() {
               <p className="ink mt-4 rounded-xl bg-destructive/20 p-3 text-sm">{mediaError}</p>
             ) : null}
             <button
+              type="button"
+              disabled={joining}
               className="ink ink-press label-caps mt-5 rounded-xl bg-primary px-5 py-3 text-sm"
-              onClick={() => {
-                setMediaError(null);
-                setStatus("Waiting for camera permission…");
-                setArmed(true);
-              }}
+              onClick={() => void requestMediaAndJoin()}
             >
-              {mediaError ? "Try again" : "Allow camera & mic and join"}
+              {joining ? "Waiting for permission…" : mediaError ? "Try again" : "Allow camera & mic and join"}
             </button>
           </section>
         ) : null}
