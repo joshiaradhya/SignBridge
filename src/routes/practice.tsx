@@ -328,6 +328,12 @@ function Practice() {
                     </p>
                   </div>
                   <p className="mt-2 text-sm leading-relaxed">{result.feedback}</p>
+                  {progressNote ? (
+                    <p className="ink mt-3 rounded-xl bg-card p-3 text-xs leading-relaxed">
+                      {progressNote}
+                    </p>
+                  ) : null}
+
 
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     {result.criteria.map((c) => (
