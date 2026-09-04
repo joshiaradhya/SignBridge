@@ -96,6 +96,14 @@ function Practice() {
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
+  useEffect(() => {
+    if (!signParam) return;
+    setSelected(signParam);
+    setBrowseAll(false);
+    setResult(null);
+  }, [signParam]);
+
+
   async function startCamera() {
     setError(null);
     try {
