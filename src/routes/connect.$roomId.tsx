@@ -195,12 +195,35 @@ function CallRoom() {
       };
 
       // Only the peer with the larger id creates the offer (the "impolite" side).
-      const startOffer = async () => {
+      // `force` re-broadcasts an offer we already made: the very first offer is often
+      // sent before the other side has finished subscribing, so it is simply lost.
+      const startOffer = async (force = false) => {
         if (!peer || userId < peer) return;
-        if (makingOffer || pc.signalingState !== "stable") return;
+        if (makingOffer) return;
+        if (pc.signalingState === "have-local-offer") {
+          if (force && pc.localDescription) {
+            send("offer", { from: userId, sdp: pc.localDescription });
+          }
+          return;
+        }
+        if (pc.signalingState !== "stable") return;
         try {
           makingOffer = true;
           await pc.setLocalDescription(await pc.createOffer());
+          send("offer", { from: userId, sdp: pc.localDescription });
+        } catch {
+          /* retried by the heartbeat below */
+        } finally {
+          makingOffer = false;
+        }
+      };
+
+      // Throw away a stalled negotiation and start a fresh one with new ICE candidates.
+      const renegotiate = async () => {
+        if (!peer || userId < peer) return;
+        try {
+          makingOffer = true;
+          await pc.setLocalDescription(await pc.createOffer({ iceRestart: true }));
           send("offer", { from: userId, sdp: pc.localDescription });
         } catch {
           /* retried by the heartbeat below */
@@ -215,6 +238,7 @@ function CallRoom() {
       pc.onnegotiationneeded = () => {
         void startOffer();
       };
+
 
       pc.onconnectionstatechange = () => {
         const s = pc.connectionState;
