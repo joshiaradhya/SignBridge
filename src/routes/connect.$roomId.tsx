@@ -62,6 +62,7 @@ function CallRoom() {
   const streamRef = useRef<MediaStream | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const joiningRef = useRef(false);
 
   const [prompt, setPrompt] = useState<string | null>(null);
   const [mode, setMode] = useState<"random" | "private">("random");
@@ -86,7 +87,8 @@ function CallRoom() {
   const userId = user?.id ?? null;
 
   async function requestMediaAndJoin() {
-    if (joining) return;
+    if (joiningRef.current) return;
+    joiningRef.current = true;
     setJoining(true);
     setMediaError(null);
     setStatus("Waiting for camera permission…");
@@ -136,6 +138,7 @@ function CallRoom() {
       );
       setStatus("Camera not started");
     } finally {
+      joiningRef.current = false;
       setJoining(false);
     }
   }
