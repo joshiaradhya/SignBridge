@@ -2,7 +2,7 @@
 
 ## What will change
 - Replace the robotic fallback diagrams in Learn and Practice with warm, human-style instructional hand artwork.
-- Keep the eight existing photographed references for their exact signs; all other signs will use the improved teaching illustration instead of an unrelated photo.
+- Redesign every existing sign image, including the eight current references, so each one is clearer, more appealing, and easier to learn from with a consistent human-style teaching illustration.
 - Add every letter A–Z and every number 0–9 to both the ASL and ISL Alphabet & Numbers courses.
 - Give each new entry its own handshape, palm orientation, movement, step-by-step notes, and common-mistake guidance.
 
