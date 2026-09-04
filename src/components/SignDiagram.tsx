@@ -101,7 +101,8 @@ function Finger({ x, pose, index }: { x: number; pose: FingerPose; index: number
         width="20"
         height={height + 16}
         rx="10"
-        className="fill-[url(#skin)] stroke-foreground/70"
+        fill="url(#skin)"
+        className="stroke-foreground/70"
         strokeWidth="1.8"
       />
       <path d={`M-6 ${-height + 25} Q0 ${-height + 29 + pose.bend / 8} 6 ${-height + 25}`} className="fill-none stroke-foreground/25" strokeWidth="1.4" />
@@ -119,14 +120,14 @@ function HumanHand({ pose, x, y, scale = 1, mirrored = false }: { pose: HandPose
   return (
     <g transform={`translate(${x} ${y}) scale(${mirrored ? -scale : scale} ${scale}) rotate(${pose.rotate ?? 0} 0 138)`}>
       <ellipse cx="2" cy="160" rx="67" ry="24" className="fill-foreground/10" />
-      <path d="M-42 113 C-47 129 -48 164 -39 186 L-31 221 L42 221 L49 181 C54 157 49 126 39 112 C20 101 -23 101 -42 113Z" className="fill-[url(#skin)] stroke-foreground/70" strokeWidth="2.2" />
+      <path d="M-42 113 C-47 129 -48 164 -39 186 L-31 221 L42 221 L49 181 C54 157 49 126 39 112 C20 101 -23 101 -42 113Z" fill="url(#skin)" className="stroke-foreground/70" strokeWidth="2.2" />
       <path d="M-30 180 Q2 194 34 178" className="fill-none stroke-foreground/25" strokeWidth="1.5" />
       <path d="M-27 194 Q3 205 31 193" className="fill-none stroke-foreground/20" strokeWidth="1.3" />
       {pose.fingers.map((finger, index) => (
         <Finger key={index} x={-30 + index * 20} pose={finger} index={index} />
       ))}
       <g transform={`translate(-43 ${thumbY}) rotate(${thumbRotation})`}>
-        <rect x="-10" y="-7" width="23" height="60" rx="11" className="fill-[url(#skin)] stroke-foreground/70" strokeWidth="2" />
+        <rect x="-10" y="-7" width="23" height="60" rx="11" fill="url(#skin)" className="stroke-foreground/70" strokeWidth="2" />
         <rect x="-5" y="-2" width="12" height="11" rx="5" className="fill-card/70 stroke-foreground/20" strokeWidth="1" />
       </g>
       <path d="M-22 218 L-19 252 M24 218 L22 252" className="stroke-foreground/25" strokeWidth="1.5" />
@@ -150,8 +151,8 @@ export function SignDiagram({ gloss, handshape, location, movement, imageKey = "
   return (
     <svg viewBox="0 0 320 240" role="img" aria-label={`Human hand illustration for ${gloss}: ${handshape}. ${movement}`} className={className}>
       <defs>
-        <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop className="stop-color-background" /><stop offset="1" className="stop-color-secondary" /></linearGradient>
-        <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1"><stop className="stop-color-accent" /><stop offset="0.52" className="stop-color-card" /><stop offset="1" className="stop-color-primary" /></linearGradient>
+        <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop stopColor="var(--background)" /><stop offset="1" stopColor="var(--secondary)" /></linearGradient>
+        <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1"><stop stopColor="var(--accent)" /><stop offset="0.6" stopColor="var(--card)" /><stop offset="1" stopColor="var(--primary)" /></linearGradient>
         <pattern id="guideGrid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" className="fill-none stroke-primary/10" strokeWidth="1" /></pattern>
       </defs>
       <rect width="320" height="240" rx="12" className="fill-background" />
