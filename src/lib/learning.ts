@@ -154,12 +154,13 @@ export async function recordActivity(
   const today = utcToday();
 
   if (kind === "lesson" && lessonId) {
-    await supabase
+    const { error } = await supabase
       .from("lesson_progress")
       .upsert(
         { user_id: userId, lesson_id: lessonId, status: "completed" },
         { onConflict: "user_id,lesson_id", ignoreDuplicates: true },
       );
+    if (error) throw error;
   }
 
   const { data: existing } = await supabase
