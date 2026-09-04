@@ -82,11 +82,16 @@ function Home() {
       <section className="border-b-2 border-border bg-background">
         <div className="mx-auto grid max-w-6xl gap-6 px-4 py-14 md:grid-cols-3">
           {pillars.map((p) => (
-            <article key={p.title} className="ink rounded-2xl bg-card p-6">
+            <Link
+              key={p.title}
+              to={p.to}
+              className="ink block rounded-2xl bg-card p-6 transition-transform hover:-translate-y-1"
+            >
               <h2 className="text-2xl">{p.title}</h2>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
-            </article>
+            </Link>
           ))}
+
         </div>
       </section>
 
