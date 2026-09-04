@@ -7,9 +7,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
   leaveRoomFn,
+  getCallSignalsFn,
   reportPeerFn,
   roomStateFn,
   saveCaptionFn,
+  sendCallSignalFn,
   translateSignFn,
 } from "@/lib/signconnect.functions";
 import { classifySegment, loadLandmarker, motionEnergy, type Landmark } from "@/lib/sign-recognizer";
@@ -48,13 +50,15 @@ function CallRoom() {
   const translateSign = useServerFn(translateSignFn);
   const saveCaption = useServerFn(saveCaptionFn);
   const leaveRoomCall = useServerFn(leaveRoomFn);
+  const getCallSignals = useServerFn(getCallSignalsFn);
+  const sendCallSignal = useServerFn(sendCallSignalFn);
   const reportPeer = useServerFn(reportPeerFn);
 
   // useServerFn returns a new function identity on every render. Keeping them in a
   // ref stops the call/recognition effects from tearing down the camera and the peer
   // connection each time a caption or status update re-renders this component.
-  const fns = useRef({ roomStateCall, translateSign, saveCaption });
-  fns.current = { roomStateCall, translateSign, saveCaption };
+  const fns = useRef({ roomStateCall, translateSign, saveCaption, getCallSignals, sendCallSignal });
+  fns.current = { roomStateCall, translateSign, saveCaption, getCallSignals, sendCallSignal };
 
 
   const localVideo = useRef<HTMLVideoElement | null>(null);
@@ -235,12 +239,13 @@ function CallRoom() {
         const message = { ...payload, from: userId, to: peer };
         if (event === "offer" || event === "answer" || event === "ice") {
           if (!peer) return;
-          void supabase.from("call_signals").insert({
-            room_id: roomId,
-            sender_id: userId,
-            recipient_id: peer,
-            signal_type: event,
-            payload: message,
+          void fns.current.sendCallSignal({
+            data: {
+              roomId,
+              recipientId: peer,
+              signalType: event,
+              payload: message,
+            },
           });
         } else if (subscribed) void channel.send({ type: "broadcast", event, payload: message });
         else outbox.push({ event, payload: message });
@@ -417,11 +422,6 @@ function CallRoom() {
       };
 
       channel
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "call_signals", filter: `recipient_id=eq.${userId}` },
-          ({ new: row }) => void receiveSignal(row as Parameters<typeof receiveSignal>[0]),
-        )
         .on("broadcast", { event: "caption" }, ({ payload }) => {
           pushCaption(payload as Caption);
         })
@@ -461,17 +461,24 @@ function CallRoom() {
             if (!m) continue;
             void channel.send({ type: "broadcast", event: m.event, payload: m.payload });
           }
-          void supabase
-            .from("call_signals")
-            .select("id, sender_id, signal_type, payload")
-            .eq("room_id", roomId)
-            .eq("recipient_id", userId)
-            .order("created_at", { ascending: true })
-            .then(({ data }) => {
-              for (const row of data ?? []) void receiveSignal(row);
-            });
           void startOffer();
         });
+
+      let lastSignalId = 0;
+      let readingSignals = false;
+      const signalPoll = window.setInterval(async () => {
+        if (readingSignals || pc.signalingState === "closed") return;
+        readingSignals = true;
+        try {
+          const rows = await fns.current.getCallSignals({ data: { roomId, afterId: lastSignalId } });
+          for (const row of rows) {
+            lastSignalId = Math.max(lastSignalId, Number(row.id));
+            await receiveSignal(row as Parameters<typeof receiveSignal>[0]);
+          }
+        } finally {
+          readingSignals = false;
+        }
+      }, 350);
 
       // Keep announcing ourselves until the handshake completes, but leave a
       // negotiation that is already in flight alone: constantly re-offering (which
@@ -508,6 +515,7 @@ function CallRoom() {
 
       cleanup = () => {
         window.clearInterval(heartbeat);
+        window.clearInterval(signalPoll);
         pc.close();
         pcRef.current = null;
         channelRef.current = null;

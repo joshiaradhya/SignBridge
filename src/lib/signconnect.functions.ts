@@ -56,6 +56,27 @@ export const leaveRoomFn = createServerFn({ method: "POST" })
     return leaveRoom(context.userId, data.roomId);
   });
 
+export const sendCallSignalFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    roomId: string;
+    recipientId: string;
+    signalType: "offer" | "answer" | "ice";
+    payload: Record<string, unknown>;
+  }) => d)
+  .handler(async ({ data, context }) => {
+    const { sendCallSignal } = await import("./signconnect.server");
+    return sendCallSignal(context.userId, data);
+  });
+
+export const getCallSignalsFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { roomId: string; afterId: number }) => d)
+  .handler(async ({ data, context }) => {
+    const { getCallSignals } = await import("./signconnect.server");
+    return getCallSignals(context.userId, data.roomId, data.afterId);
+  });
+
 export const saveCaptionFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { roomId: string; label: string; confidence: number; text: string }) => d)

@@ -174,6 +174,42 @@ export async function leaveRoom(userId: string, roomId: string) {
   return { ok: true };
 }
 
+export async function sendCallSignal(
+  userId: string,
+  input: {
+    roomId: string;
+    recipientId: string;
+    signalType: "offer" | "answer" | "ice";
+    payload: Record<string, unknown>;
+  },
+) {
+  const state = await roomState(userId, input.roomId);
+  if (!state.participants.includes(input.recipientId)) throw new Error("Partner is not in this room");
+  const { error } = await supabaseAdmin.from("call_signals").insert({
+    room_id: input.roomId,
+    sender_id: userId,
+    recipient_id: input.recipientId,
+    signal_type: input.signalType,
+    payload: input.payload,
+  });
+  if (error) throw new Error("Could not send call connection data");
+  return { ok: true };
+}
+
+export async function getCallSignals(userId: string, roomId: string, afterId: number) {
+  await roomState(userId, roomId);
+  const { data, error } = await supabaseAdmin
+    .from("call_signals")
+    .select("id, sender_id, signal_type, payload")
+    .eq("room_id", roomId)
+    .eq("recipient_id", userId)
+    .gt("id", afterId)
+    .order("id", { ascending: true })
+    .limit(100);
+  if (error) throw new Error("Could not receive call connection data");
+  return data ?? [];
+}
+
 export async function saveCaption(
   userId: string,
   input: { roomId: string; label: string; confidence: number; text: string },
