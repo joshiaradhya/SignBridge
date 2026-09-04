@@ -96,7 +96,15 @@ function CallRoom() {
         if (!navigator.mediaDevices?.getUserMedia) {
           throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
         }
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        } catch (first) {
+          // Some laptops fail the combined request (mic busy / no mic) — fall back to video only.
+          const n = (first as { name?: string })?.name ?? "";
+          if (n === "NotAllowedError" || n === "SecurityError") throw first;
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+
       } catch (err) {
         const name = (err as { name?: string })?.name ?? "";
         setMediaError(
