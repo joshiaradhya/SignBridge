@@ -76,6 +76,7 @@ function CallRoom() {
   const [armed, setArmed] = useState(false);
   const [joining, setJoining] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [playbackBlocked, setPlaybackBlocked] = useState(false);
 
   const pushCaption = useCallback((c: Caption) => {
     setCaptions((prev) => [...prev.slice(-40), c]);
@@ -190,6 +191,7 @@ function CallRoom() {
               "turn:openrelay.metered.ca:80",
               "turn:openrelay.metered.ca:443",
               "turn:openrelay.metered.ca:443?transport=tcp",
+              "turns:openrelay.metered.ca:443?transport=tcp",
             ],
             username: "openrelayproject",
             credential: "openrelayproject",
@@ -209,11 +211,17 @@ function CallRoom() {
         if (remoteVideo.current && remoteVideo.current.srcObject !== remoteStream) {
           remoteVideo.current.srcObject = remoteStream;
         }
-        void remoteVideo.current?.play().catch(() => {});
+        const video = remoteVideo.current;
+        if (video) {
+          void video.play().then(() => setPlaybackBlocked(false)).catch(() => setPlaybackBlocked(true));
+        }
       };
 
       const channel = supabase.channel(`room:${roomId}`, {
-        config: { broadcast: { self: false, ack: false } },
+        config: {
+          broadcast: { self: false, ack: true },
+          presence: { key: userId },
+        },
       });
       channelRef.current = channel;
 
@@ -221,9 +229,13 @@ function CallRoom() {
       let subscribed = false;
       const outbox: { event: string; payload: Record<string, unknown> }[] = [];
       const send = (event: string, payload: Record<string, unknown>) => {
-        if (subscribed) void channel.send({ type: "broadcast", event, payload });
-        else outbox.push({ event, payload });
+        const message = { ...payload, from: userId, to: peer };
+        if (subscribed) void channel.send({ type: "broadcast", event, payload: message });
+        else outbox.push({ event, payload: message });
       };
+
+      const addressedToMe = (payload: { from?: string; to?: string | null } | undefined) =>
+        Boolean(payload?.from && payload.from !== userId && (!payload.to || payload.to === userId));
 
       // perfect-negotiation state
       let peer: string | null = state.peerId;
@@ -238,6 +250,24 @@ function CallRoom() {
           await pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
         }
       };
+
+      const waitForIceGathering = () =>
+        new Promise<void>((resolve) => {
+          if (pc.iceGatheringState === "complete") {
+            resolve();
+            return;
+          }
+          const finish = () => {
+            if (pc.iceGatheringState !== "complete") return;
+            pc.removeEventListener("icegatheringstatechange", finish);
+            resolve();
+          };
+          pc.addEventListener("icegatheringstatechange", finish);
+          window.setTimeout(() => {
+            pc.removeEventListener("icegatheringstatechange", finish);
+            resolve();
+          }, 2500);
+        });
 
       // Only the peer with the larger id creates the offer (the "impolite" side).
       // `force` re-broadcasts an offer we already made: the very first offer is often
@@ -258,7 +288,10 @@ function CallRoom() {
         try {
           makingOffer = true;
           await pc.setLocalDescription(await pc.createOffer());
-          send("offer", { from: userId, sdp: pc.localDescription });
+          // Include gathered candidates in the offer itself. This makes joining reliable
+          // even when early trickle-ICE broadcasts were sent before the peer subscribed.
+          await waitForIceGathering();
+          send("offer", { sdp: pc.localDescription });
         } catch {
           /* retried by the heartbeat below */
         } finally {
@@ -277,7 +310,8 @@ function CallRoom() {
           }
           if (pc.signalingState !== "stable") return;
           await pc.setLocalDescription(await pc.createOffer({ iceRestart: true }));
-          send("offer", { from: userId, sdp: pc.localDescription });
+          await waitForIceGathering();
+          send("offer", { sdp: pc.localDescription });
         } catch {
           /* retried by the heartbeat below */
         } finally {
@@ -286,7 +320,7 @@ function CallRoom() {
       };
 
       pc.onicecandidate = (e) => {
-        if (e.candidate) send("ice", { from: userId, candidate: e.candidate.toJSON() });
+        if (e.candidate) send("ice", { candidate: e.candidate.toJSON() });
       };
       pc.onnegotiationneeded = () => {
         void startOffer();
@@ -329,7 +363,7 @@ function CallRoom() {
 
       channel
         .on("broadcast", { event: "offer" }, async ({ payload }) => {
-          if (!payload?.from || payload.from === userId) return;
+          if (!addressedToMe(payload)) return;
           peer = payload.from;
           setPeerId(payload.from);
           const polite = userId < payload.from;
@@ -344,13 +378,14 @@ function CallRoom() {
             await drainIce();
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            send("answer", { from: userId, sdp: pc.localDescription });
+            await waitForIceGathering();
+            send("answer", { sdp: pc.localDescription });
           } catch {
             /* ignore malformed offer */
           }
         })
         .on("broadcast", { event: "answer" }, async ({ payload }) => {
-          if (!payload?.from || payload.from === userId) return;
+          if (!addressedToMe(payload)) return;
           if (pc.signalingState !== "have-local-offer") return;
           try {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
@@ -360,7 +395,7 @@ function CallRoom() {
           }
         })
         .on("broadcast", { event: "ice" }, async ({ payload }) => {
-          if (!payload?.from || payload.from === userId) return;
+          if (!addressedToMe(payload)) return;
           if (!pc.remoteDescription) {
             pendingIce.push(payload.candidate);
             return;
@@ -373,13 +408,22 @@ function CallRoom() {
           pushCaption(payload as Caption);
         })
         .on("broadcast", { event: "hello" }, ({ payload }) => {
-          if (!payload?.from || payload.from === userId) return;
+          if (!addressedToMe(payload)) return;
           const isNewPeer = peer !== payload.from;
           peer = payload.from;
           setPeerId(payload.from);
-          if (!payload.reply) send("hello", { from: userId, reply: true });
+          if (!payload.reply) send("hello", { reply: true });
           // A peer that just (re)appeared may have missed our earlier offer.
           void startOffer(!isNewPeer);
+        })
+        .on("presence", { event: "sync" }, () => {
+          const presentIds = Object.keys(channel.presenceState()).filter((id) => id !== userId);
+          const presentPeer = presentIds[0];
+          if (!presentPeer) return;
+          peer = presentPeer;
+          setPeerId(presentPeer);
+          send("hello", { reply: false });
+          void startOffer(true);
         })
         .subscribe((s) => {
           if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") {
@@ -388,6 +432,7 @@ function CallRoom() {
           }
           if (s !== "SUBSCRIBED") return;
           subscribed = true;
+          void channel.track({ userId, joinedAt: new Date().toISOString() });
           void channel.send({
             type: "broadcast",
             event: "hello",
@@ -419,7 +464,7 @@ function CallRoom() {
         if (!handshakeDone) {
           // No peer yet, or our offer/answer got lost: re-announce and re-offer,
           // but only every other second so each attempt has time to land.
-          send("hello", { from: userId, reply: false });
+          send("hello", { reply: false });
           if (beats % 2 === 0) void startOffer(true);
           return;
         }
@@ -601,6 +646,17 @@ function CallRoom() {
             <span className="label-caps ink absolute top-3 left-3 rounded-lg bg-card px-2 py-1 text-[10px]">
               Partner
             </span>
+            {playbackBlocked ? (
+              <button
+                type="button"
+                className="ink ink-press label-caps absolute right-3 bottom-3 rounded-lg bg-primary px-3 py-2 text-xs"
+                onClick={() => {
+                  void remoteVideo.current?.play().then(() => setPlaybackBlocked(false));
+                }}
+              >
+                Play partner video
+              </button>
+            ) : null}
           </div>
         </div>
 
