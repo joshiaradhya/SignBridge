@@ -82,6 +82,44 @@ export type Database = {
           },
         ]
       }
+      call_signals: {
+        Row: {
+          created_at: string
+          id: number
+          payload: Json
+          recipient_id: string
+          room_id: string
+          sender_id: string
+          signal_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          payload: Json
+          recipient_id: string
+          room_id: string
+          sender_id: string
+          signal_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          payload?: Json
+          recipient_id?: string
+          room_id?: string
+          sender_id?: string
+          signal_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_signals_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_transcripts: {
         Row: {
           confidence: number | null
