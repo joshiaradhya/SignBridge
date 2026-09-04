@@ -248,18 +248,35 @@ function Practice() {
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <div className="grid-paper min-h-screen">
-        <div className="mx-auto max-w-6xl px-4 py-10">
-          <h1 className="text-4xl">SIGNLAB</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed">
-            Your camera feed stays in your browser — nothing is uploaded. Pick a sign, read the
-            movement note, then record a three-second attempt.
-          </p>
+      <main className="grid-paper practice-page min-h-screen">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
+          <header className="practice-banner ink-lg overflow-hidden rounded-2xl px-5 py-6 sm:px-8 sm:py-8">
+            <div className="relative z-10 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+              <div>
+                <p className="label-caps text-[11px] text-muted-foreground">Camera practice studio</p>
+                <h1 className="mt-1 text-4xl sm:text-5xl">SIGNLAB</h1>
+                <p className="mt-3 max-w-2xl text-sm leading-relaxed">
+                  Pick a sign, study the movement, then practise it beside the reference. Your
+                  camera feed stays in your browser and is never uploaded.
+                </p>
+              </div>
+              {activeSign ? (
+                <div className="ink rounded-xl bg-card/90 px-4 py-3 sm:max-w-[15rem]">
+                  <p className="label-caps text-[9px] text-muted-foreground">Now practising</p>
+                  <p className="mt-1 font-display text-lg font-extrabold">{activeSign.gloss}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{activeSign.meaning}</p>
+                </div>
+              ) : null}
+            </div>
+          </header>
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-            <section className="ink-lg rounded-2xl bg-card p-4 sm:p-6">
+          <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(20rem,0.85fr)]">
+            <section className="practice-panel ink-lg rounded-2xl bg-card p-4 sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-xl">CAMERA</h2>
+                <div>
+                  <p className="label-caps text-[10px] text-muted-foreground">Your workspace</p>
+                  <h2 className="mt-0.5 text-xl">CAMERA</h2>
+                </div>
                 <button
                   onClick={() => setMirror((m) => !m)}
                   className="ink ink-press label-caps rounded-full bg-background px-3 py-1.5 text-[11px]"
@@ -268,7 +285,7 @@ function Practice() {
                 </button>
               </div>
 
-              <div className="ink mt-4 aspect-video w-full overflow-hidden rounded-xl bg-muted">
+              <div className="practice-camera ink mt-4 aspect-video w-full overflow-hidden rounded-xl bg-muted">
                 {cameraOn ? (
                   <video
                     ref={videoRef}
@@ -384,8 +401,16 @@ function Practice() {
 
             </section>
 
-            <section className="ink-lg rounded-2xl bg-card p-4 sm:p-6">
-              <h2 className="text-xl">REFERENCE</h2>
+            <section className="practice-panel practice-reference ink-lg rounded-2xl bg-card p-4 sm:p-6 lg:sticky lg:top-4">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="label-caps text-[10px] text-muted-foreground">Study the sign</p>
+                  <h2 className="mt-0.5 text-xl">REFERENCE</h2>
+                </div>
+                <span className="ink label-caps rounded-full bg-secondary px-2.5 py-1 text-[9px]">
+                  {activeLesson?.language ?? "ASL / ISL"}
+                </span>
+              </div>
 
               {activeSign ? (
                 <div className="mt-4">
@@ -395,7 +420,7 @@ function Practice() {
                     </span>
                     <span className="text-xs text-muted-foreground">{activeSign.meaning}</span>
                   </div>
-                  <div className="ink mt-3 overflow-hidden rounded-xl">
+                  <div className="practice-sign-card ink mt-3 overflow-hidden rounded-xl">
                     <SignVisual sign={activeSign} />
                   </div>
                   <p className="mt-3 text-sm leading-relaxed">{activeSign.movement}</p>
@@ -453,7 +478,7 @@ function Practice() {
                     />
                   </div>
 
-                  <div className="mt-4 max-h-[420px] space-y-4 overflow-y-auto pr-1">
+                   <div className="practice-library mt-4 max-h-[420px] space-y-4 overflow-y-auto pr-2">
                     {groups.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
                         No signs match these filters yet — try another category.
@@ -493,7 +518,7 @@ function Practice() {
                               </button>
                             );
                           })}
-                        </div>
+       </main>
                       </div>
                     ))}
                   </div>

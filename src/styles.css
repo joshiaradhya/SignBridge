@@ -172,6 +172,81 @@
   font-weight: 700;
 }
 
+/* Practice studio — existing ink-and-paper language in a clearer workspace layout */
+.practice-page {
+  background-color: var(--color-paper);
+  background-image:
+    linear-gradient(to bottom, color-mix(in oklab, var(--color-sky) 74%, var(--color-card)) 0%, transparent 24rem),
+    linear-gradient(to right, oklch(0.19 0.015 260 / 8%) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.19 0.015 260 / 8%) 1px, transparent 1px);
+  background-size: 100% 100%, 28px 28px, 28px 28px;
+}
+
+.practice-banner {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(112deg, var(--color-sky) 0%, var(--color-secondary) 46%, var(--color-card) 100%);
+}
+
+.practice-banner::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--color-border) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--color-border) 7%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: linear-gradient(to right, black, transparent 76%);
+}
+
+.practice-panel {
+  box-shadow:
+    7px 7px 0 0 var(--color-border),
+    0 20px 42px -28px color-mix(in oklab, var(--color-border) 55%, transparent);
+}
+
+.practice-camera {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--color-card) 55%, transparent),
+    0 12px 0 -7px var(--color-secondary),
+    0 16px 0 -9px var(--color-border);
+}
+
+.practice-sign-card {
+  transform: perspective(900px) rotateX(0.8deg) rotateY(-0.8deg);
+  box-shadow:
+    5px 6px 0 0 var(--color-secondary),
+    8px 9px 0 0 var(--color-border);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.practice-sign-card:hover {
+  transform: perspective(900px) rotateX(0deg) rotateY(0deg) translateY(-2px);
+  box-shadow:
+    4px 7px 0 0 var(--color-secondary),
+    7px 10px 0 0 var(--color-border);
+}
+
+.practice-library {
+  scrollbar-color: var(--color-border) transparent;
+  scrollbar-width: thin;
+}
+
+@media (min-width: 1024px) {
+  .practice-camera {
+    min-height: 29rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .practice-sign-card,
+  .practice-sign-card:hover {
+    transform: none;
+    transition: none;
+  }
+}
+
 /* Dark theme tokens */
 .dark {
   --background: oklch(0.19 0.02 260);
@@ -218,6 +293,13 @@
   background-image:
     linear-gradient(to right, oklch(0.95 0.01 95 / 7%) 1px, transparent 1px),
     linear-gradient(to bottom, oklch(0.95 0.01 95 / 7%) 1px, transparent 1px);
+}
+
+.dark .practice-page {
+  background-image:
+    linear-gradient(to bottom, color-mix(in oklab, var(--color-sky) 38%, var(--color-background)) 0%, transparent 24rem),
+    linear-gradient(to right, oklch(0.95 0.01 95 / 8%) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.95 0.01 95 / 8%) 1px, transparent 1px);
 }
 
 /* Logo hover animation */
