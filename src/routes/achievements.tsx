@@ -51,7 +51,7 @@ function AchievementsInner() {
         </div>
         <div className="ink rounded-2xl bg-sky p-5">
           <p className="font-display text-4xl font-extrabold">{s.stats.attempts}</p>
-          <p className="label-caps text-[11px]">Signs practised</p>
+          <p className="label-caps text-[11px]">Signs practiced</p>
         </div>
         <div className="ink rounded-2xl bg-accent p-5">
           <p className="font-display flex items-center gap-2 text-4xl font-extrabold">

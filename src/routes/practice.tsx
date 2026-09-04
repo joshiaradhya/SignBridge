@@ -20,12 +20,12 @@ export const Route = createFileRoute("/practice")({
       {
         name: "description",
         content:
-          "Turn on your camera, mirror your hands and practise ASL or ISL signs against the reference illustration. Attempts are scored and saved to your progress.",
+          "Turn on your camera, mirror your hands and practice ASL or ISL signs against the reference illustration. Attempts are scored and saved to your progress.",
       },
       { property: "og:title", content: "SignLab practice studio — SignBridge" },
       {
         property: "og:description",
-        content: "Practise ASL and ISL signs on camera with mirror mode and instant feedback.",
+        content: "Practice ASL and ISL signs on camera with mirror mode and instant feedback.",
       },
     ],
   }),
@@ -231,7 +231,7 @@ function Practice() {
       const lessonId = activeSign.lesson_id;
       if (lessonId && analysis.score >= 50) {
         await recordActivity(user.id, "lesson", lessonId).catch(() => {});
-        setProgressNote("Lesson marked as practised — your course progress is updated.");
+        setProgressNote("Lesson marked as practiced — your course progress is updated.");
       } else {
         await recordActivity(user.id, "practice").catch(() => {});
         setProgressNote(null);
