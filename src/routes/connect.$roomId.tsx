@@ -185,7 +185,6 @@ function CallRoom() {
       let peer: string | null = state.peerId;
       let makingOffer = false;
       let ignoreOffer = false;
-      let offering = false;
       const pendingIce: RTCIceCandidateInit[] = [];
 
       const drainIce = async () => {
@@ -304,7 +303,17 @@ function CallRoom() {
           void startOffer();
         });
 
+      // Re-announce ourselves until the media actually flows. This covers the case
+      // where one side subscribed to the channel before the other was listening,
+      // and retries the offer if the first one was lost.
+      const heartbeat = window.setInterval(() => {
+        if (pc.connectionState === "connected" || pc.connectionState === "closed") return;
+        send("hello", { from: userId, reply: false });
+        void startOffer();
+      }, 2500);
+
       cleanup = () => {
+        window.clearInterval(heartbeat);
         stream.getTracks().forEach((t) => t.stop());
         pc.getSenders().forEach((s) => s.track?.stop());
         pc.close();
