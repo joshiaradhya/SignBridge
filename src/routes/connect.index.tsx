@@ -12,6 +12,9 @@ import {
 } from "@/lib/signconnect.functions";
 
 export const Route = createFileRoute("/connect/")({
+  validateSearch: (search: Record<string, unknown>): { auto?: boolean } =>
+    search["auto"] === true || search["auto"] === "true" ? { auto: true } : {},
+
   head: () => ({
     meta: [
       { title: "SignConnect — live sign video calls with captions | SignBridge" },
