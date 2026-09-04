@@ -245,6 +245,9 @@ function CallRoom() {
       const startOffer = async (force = false) => {
         if (!peer || userId < peer) return;
         if (makingOffer) return;
+        // Once the answer is in we are done negotiating — re-offering here is what
+        // used to restart the handshake every second and stop ICE from ever finishing.
+        if (pc.remoteDescription && pc.signalingState === "stable") return;
         if (pc.signalingState === "have-local-offer") {
           if (force && pc.localDescription) {
             send("offer", { from: userId, sdp: pc.localDescription });
@@ -310,6 +313,17 @@ function CallRoom() {
           }
         } else if (s === "closed") {
           setConnected(false);
+        }
+      };
+
+      // Some browsers (notably older Safari) report progress only here.
+      pc.oniceconnectionstatechange = () => {
+        const s = pc.iceConnectionState;
+        if (s === "connected" || s === "completed") {
+          setConnected(true);
+          setStatus("Live connection");
+        } else if (s === "checking") {
+          setStatus("Connecting to your partner…");
         }
       };
 
@@ -387,24 +401,35 @@ function CallRoom() {
           void startOffer();
         });
 
-      // Re-announce ourselves until the media actually flows. This covers the case
-      // where one side subscribed to the channel before the other was listening,
-      // and re-sends the offer if the first one was lost (which is what stalled
-      // desktop-to-desktop calls: both tabs subscribe at almost the same moment).
+      // Keep announcing ourselves until the handshake completes, but leave a
+      // negotiation that is already in flight alone: constantly re-offering (which
+      // is what the old heartbeat did) restarts ICE every second and is exactly why
+      // two laptops never connected. Once both descriptions are set we only step in
+      // if the connection genuinely fails.
       let beats = 0;
+      let handshakeDone = false;
       const heartbeat = window.setInterval(() => {
         const s = pc.connectionState;
-        if (s === "connected" || s === "closed") {
-          beats = 0;
+        if (s === "closed") return;
+        beats += 1;
+        handshakeDone = Boolean(pc.remoteDescription) && pc.signalingState === "stable";
+
+        if (s === "connected") return;
+
+        if (!handshakeDone) {
+          // No peer yet, or our offer/answer got lost: re-announce and re-offer,
+          // but only every other second so each attempt has time to land.
+          send("hello", { from: userId, reply: false });
+          if (beats % 2 === 0) void startOffer(true);
           return;
         }
-        beats += 1;
-        send("hello", { from: userId, reply: false });
-        // Still stuck after ~6s: gather fresh candidates and send a new offer.
-        if (beats % 6 === 0 && (pc.signalingState === "have-local-offer" || s === "failed")) {
+
+        // Descriptions exchanged. Give ICE time, then restart it if it stalled.
+        if (
+          beats % 12 === 0 &&
+          (s === "failed" || s === "disconnected" || pc.iceConnectionState === "failed")
+        ) {
           void renegotiate();
-        } else {
-          void startOffer(true);
         }
       }, 1000);
 
