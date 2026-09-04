@@ -50,6 +50,13 @@ function CallRoom() {
   const leaveRoomCall = useServerFn(leaveRoomFn);
   const reportPeer = useServerFn(reportPeerFn);
 
+  // useServerFn returns a new function identity on every render. Keeping them in a
+  // ref stops the call/recognition effects from tearing down the camera and the peer
+  // connection each time a caption or status update re-renders this component.
+  const fns = useRef({ roomStateCall, translateSign, saveCaption });
+  fns.current = { roomStateCall, translateSign, saveCaption };
+
+
   const localVideo = useRef<HTMLVideoElement | null>(null);
   const remoteVideo = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -115,7 +122,7 @@ function CallRoom() {
 
       let state;
       try {
-        state = await roomStateCall({ data: { roomId } });
+        state = await fns.current.roomStateCall({ data: { roomId } });
       } catch {
         stream.getTracks().forEach((t) => t.stop());
         setStatus("You are not part of this call.");
@@ -178,7 +185,6 @@ function CallRoom() {
       let peer: string | null = state.peerId;
       let makingOffer = false;
       let ignoreOffer = false;
-      let offering = false;
       const pendingIce: RTCIceCandidateInit[] = [];
 
       const drainIce = async () => {
@@ -188,16 +194,16 @@ function CallRoom() {
         }
       };
 
+      // Only the peer with the larger id creates the offer (the "impolite" side).
       const startOffer = async () => {
-        if (offering || !peer || userId < peer) return; // larger id = impolite = offerer
-        offering = true;
+        if (!peer || userId < peer) return;
+        if (makingOffer || pc.signalingState !== "stable") return;
         try {
           makingOffer = true;
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
+          await pc.setLocalDescription(await pc.createOffer());
           send("offer", { from: userId, sdp: pc.localDescription });
         } catch {
-          offering = false;
+          /* retried by the heartbeat below */
         } finally {
           makingOffer = false;
         }
@@ -207,11 +213,9 @@ function CallRoom() {
         if (e.candidate) send("ice", { from: userId, candidate: e.candidate.toJSON() });
       };
       pc.onnegotiationneeded = () => {
-        if (peer && userId > peer && pc.signalingState === "stable" && offering) {
-          offering = false;
-          void startOffer();
-        }
+        void startOffer();
       };
+
       pc.onconnectionstatechange = () => {
         const s = pc.connectionState;
         if (s === "connected") {
@@ -299,7 +303,17 @@ function CallRoom() {
           void startOffer();
         });
 
+      // Re-announce ourselves until the media actually flows. This covers the case
+      // where one side subscribed to the channel before the other was listening,
+      // and retries the offer if the first one was lost.
+      const heartbeat = window.setInterval(() => {
+        if (pc.connectionState === "connected" || pc.connectionState === "closed") return;
+        send("hello", { from: userId, reply: false });
+        void startOffer();
+      }, 2500);
+
       cleanup = () => {
+        window.clearInterval(heartbeat);
         stream.getTracks().forEach((t) => t.stop());
         pc.getSenders().forEach((s) => s.track?.stop());
         pc.close();
@@ -313,12 +327,12 @@ function CallRoom() {
       cancelled = true;
       cleanup();
     };
-  }, [roomId, userId, armed, roomStateCall, pushCaption]);
+  }, [roomId, userId, armed, pushCaption]);
 
 
   // ---- local sign recognition ----
   useEffect(() => {
-    if (!user || !armed) return;
+    if (!userId || !armed) return;
     let raf = 0;
     let stop = false;
     let buffer: Landmark[][] = [];
@@ -353,14 +367,14 @@ function CallRoom() {
             if (match && match.confidence >= 0.6) {
               lastEmit = Date.now();
               setDetecting(match.label);
-              const { text } = await translateSign({ data: { label: match.label } }).catch(() => ({
+              const { text } = await fns.current.translateSign({ data: { label: match.label } }).catch(() => ({
                 text: match.label,
               }));
               setDetecting(null);
-              const caption: Caption = { senderId: user.id, text, timestamp: Date.now() };
+              const caption: Caption = { senderId: userId, text, timestamp: Date.now() };
               pushCaption(caption);
               channelRef.current?.send({ type: "broadcast", event: "caption", payload: caption });
-              saveCaption({
+              fns.current.saveCaption({
                 data: { roomId, label: match.label, confidence: match.confidence, text },
               }).catch(() => {});
             }
@@ -375,7 +389,7 @@ function CallRoom() {
       stop = true;
       cancelAnimationFrame(raf);
     };
-  }, [user, roomId, translateSign, saveCaption, pushCaption]);
+  }, [userId, armed, roomId, pushCaption]);
 
   function toggleMute() {
     const track = streamRef.current?.getAudioTracks()[0];

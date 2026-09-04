@@ -35,19 +35,19 @@ function Field({ label, value }: { label: string; value: string }) {
 
 function SignEntry({ sign, index }: { sign: Sign; index: number }) {
   return (
-    <article className="ink-lg rounded-2xl bg-card p-6">
+    <article className="ink-lg rounded-2xl bg-card p-4 sm:p-6">
       <div className="flex flex-wrap items-center gap-3">
         <span className="ink label-caps flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm">
           {index + 1}
         </span>
-        <h2 className="text-3xl">{sign.gloss}</h2>
+        <h2 className="text-2xl break-words sm:text-3xl">{sign.gloss}</h2>
         <span className="ink label-caps rounded-full bg-accent px-3 py-1 text-[11px]">
           {sign.meaning}
         </span>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div className="ink overflow-hidden rounded-xl bg-background">
+      <div className="mt-6 grid gap-6 md:grid-cols-2">
+        <div className="ink h-fit overflow-hidden rounded-xl bg-background">
           <SignVisual sign={sign} />
         </div>
 
@@ -60,7 +60,7 @@ function SignEntry({ sign, index }: { sign: Sign; index: number }) {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-6 grid gap-6 md:grid-cols-2">
         <div>
           <p className="label-caps text-xs text-muted-foreground">Step by step</p>
           <ol className="mt-3 space-y-2">
@@ -117,7 +117,7 @@ function LessonPage() {
                 <span className="ink label-caps inline-block rounded-full bg-primary px-3 py-1 text-xs">
                   {lesson.language} · {lessonSigns.length} signs
                 </span>
-                <h1 className="mt-4 text-4xl">{lesson.title.toUpperCase()}</h1>
+                <h1 className="mt-4 text-3xl break-words sm:text-4xl">{lesson.title.toUpperCase()}</h1>
                 <p className="mt-3 text-sm leading-relaxed">{lesson.summary}</p>
                 <p className="mt-3 text-xs text-muted-foreground">
                   Reference source: {lesson.source}
