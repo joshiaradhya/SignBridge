@@ -122,7 +122,7 @@ function CallRoom() {
 
       let state;
       try {
-        state = await roomStateCall({ data: { roomId } });
+        state = await fns.current.roomStateCall({ data: { roomId } });
       } catch {
         stream.getTracks().forEach((t) => t.stop());
         setStatus("You are not part of this call.");
@@ -320,12 +320,12 @@ function CallRoom() {
       cancelled = true;
       cleanup();
     };
-  }, [roomId, userId, armed, roomStateCall, pushCaption]);
+  }, [roomId, userId, armed, pushCaption]);
 
 
   // ---- local sign recognition ----
   useEffect(() => {
-    if (!user || !armed) return;
+    if (!userId || !armed) return;
     let raf = 0;
     let stop = false;
     let buffer: Landmark[][] = [];
@@ -360,14 +360,14 @@ function CallRoom() {
             if (match && match.confidence >= 0.6) {
               lastEmit = Date.now();
               setDetecting(match.label);
-              const { text } = await translateSign({ data: { label: match.label } }).catch(() => ({
+              const { text } = await fns.current.translateSign({ data: { label: match.label } }).catch(() => ({
                 text: match.label,
               }));
               setDetecting(null);
-              const caption: Caption = { senderId: user.id, text, timestamp: Date.now() };
+              const caption: Caption = { senderId: userId, text, timestamp: Date.now() };
               pushCaption(caption);
               channelRef.current?.send({ type: "broadcast", event: "caption", payload: caption });
-              saveCaption({
+              fns.current.saveCaption({
                 data: { roomId, label: match.label, confidence: match.confidence, text },
               }).catch(() => {});
             }
@@ -382,7 +382,7 @@ function CallRoom() {
       stop = true;
       cancelAnimationFrame(raf);
     };
-  }, [user, roomId, translateSign, saveCaption, pushCaption]);
+  }, [userId, armed, roomId, pushCaption]);
 
   function toggleMute() {
     const track = streamRef.current?.getAudioTracks()[0];
