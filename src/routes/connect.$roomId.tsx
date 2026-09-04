@@ -233,7 +233,16 @@ function CallRoom() {
       const outbox: { event: string; payload: Record<string, unknown> }[] = [];
       const send = (event: string, payload: Record<string, unknown>) => {
         const message = { ...payload, from: userId, to: peer };
-        if (subscribed) void channel.send({ type: "broadcast", event, payload: message });
+        if (event === "offer" || event === "answer" || event === "ice") {
+          if (!peer) return;
+          void supabase.from("call_signals").insert({
+            room_id: roomId,
+            sender_id: userId,
+            recipient_id: peer,
+            signal_type: event,
+            payload: message,
+          });
+        } else if (subscribed) void channel.send({ type: "broadcast", event, payload: message });
         else outbox.push({ event, payload: message });
       };
 
@@ -245,6 +254,7 @@ function CallRoom() {
       let makingOffer = false;
       let ignoreOffer = false;
       const pendingIce: RTCIceCandidateInit[] = [];
+      const seenSignals = new Set<number>();
 
       const drainIce = async () => {
         while (pendingIce.length) {
@@ -364,49 +374,54 @@ function CallRoom() {
         }
       };
 
-      channel
-        .on("broadcast", { event: "offer" }, async ({ payload }) => {
-          if (!addressedToMe(payload)) return;
-          peer = payload.from;
-          setPeerId(payload.from);
-          const polite = userId < payload.from;
+      const receiveSignal = async (row: {
+        id: number;
+        sender_id: string;
+        signal_type: string;
+        payload: unknown;
+      }) => {
+        if (seenSignals.has(row.id) || row.sender_id === userId) return;
+        seenSignals.add(row.id);
+        const payload = row.payload as {
+          from?: string;
+          to?: string | null;
+          sdp?: RTCSessionDescriptionInit;
+          candidate?: RTCIceCandidateInit;
+        };
+        if (!addressedToMe(payload)) return;
+        peer = row.sender_id;
+        setPeerId(row.sender_id);
+
+        if (row.signal_type === "offer" && payload.sdp) {
+          const polite = userId < row.sender_id;
           const collision = makingOffer || pc.signalingState !== "stable";
           ignoreOffer = !polite && collision;
           if (ignoreOffer) return;
           try {
-            if (collision) {
-              await pc.setLocalDescription({ type: "rollback" } as RTCSessionDescriptionInit);
-            }
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+            if (collision) await pc.setLocalDescription({ type: "rollback" });
+            await pc.setRemoteDescription(payload.sdp);
             await drainIce();
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
+            await pc.setLocalDescription(await pc.createAnswer());
             await waitForIceGathering();
             send("answer", { sdp: pc.localDescription });
           } catch {
-            /* ignore malformed offer */
+            /* a newer persisted offer can still complete the call */
           }
-        })
-        .on("broadcast", { event: "answer" }, async ({ payload }) => {
-          if (!addressedToMe(payload)) return;
+        } else if (row.signal_type === "answer" && payload.sdp) {
           if (pc.signalingState !== "have-local-offer") return;
-          try {
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
-            await drainIce();
-          } catch {
-            /* ignore */
-          }
-        })
-        .on("broadcast", { event: "ice" }, async ({ payload }) => {
-          if (!addressedToMe(payload)) return;
-          if (!pc.remoteDescription) {
-            pendingIce.push(payload.candidate);
-            return;
-          }
-          await pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(() => {
-            if (!ignoreOffer) pendingIce.push(payload.candidate);
-          });
-        })
+          await pc.setRemoteDescription(payload.sdp).then(drainIce).catch(() => {});
+        } else if (row.signal_type === "ice" && payload.candidate) {
+          if (!pc.remoteDescription) pendingIce.push(payload.candidate);
+          else await pc.addIceCandidate(payload.candidate).catch(() => pendingIce.push(payload.candidate as RTCIceCandidateInit));
+        }
+      };
+
+      channel
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "call_signals", filter: `recipient_id=eq.${userId}` },
+          ({ new: row }) => void receiveSignal(row as Parameters<typeof receiveSignal>[0]),
+        )
         .on("broadcast", { event: "caption" }, ({ payload }) => {
           pushCaption(payload as Caption);
         })
@@ -446,6 +461,15 @@ function CallRoom() {
             if (!m) continue;
             void channel.send({ type: "broadcast", event: m.event, payload: m.payload });
           }
+          void supabase
+            .from("call_signals")
+            .select("id, sender_id, signal_type, payload")
+            .eq("room_id", roomId)
+            .eq("recipient_id", userId)
+            .order("created_at", { ascending: true })
+            .then(({ data }) => {
+              for (const row of data ?? []) void receiveSignal(row);
+            });
           void startOffer();
         });
 
