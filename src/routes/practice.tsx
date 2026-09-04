@@ -54,6 +54,9 @@ function Practice() {
   const [search, setSearch] = useState("");
   // Arriving from "Try it on camera" should show that sign only, not the whole library.
   const [browseAll, setBrowseAll] = useState(!signParam);
+  const [progressNote, setProgressNote] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
 
 
   const courses = useQuery(coursesQuery);
