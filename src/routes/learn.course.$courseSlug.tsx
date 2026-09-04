@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, Circle, Clock } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { BookOpen, Camera, CheckCircle2, Circle, Clock, MoveRight } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { RequireAuth } from "@/components/RequireAuth";
+import { Button } from "@/components/ui/button";
 import { useLearnerStats } from "@/hooks/useLearnerStats";
+import { signsQuery } from "@/lib/signbridge";
 
 export const Route = createFileRoute("/learn/course/$courseSlug")({
   head: () => ({
@@ -37,6 +40,7 @@ function CoursePage() {
 function CourseInner() {
   const { courseSlug } = Route.useParams();
   const s = useLearnerStats();
+  const signs = useQuery(signsQuery);
   const entry = s.courseProgress.find((c) => c.course.slug === courseSlug);
 
   if (s.loading) {
@@ -91,36 +95,73 @@ function CourseInner() {
           </div>
         </div>
 
-        <h2 className="mt-10 text-2xl">LESSONS</h2>
-        <div className="mt-4 grid gap-3">
+        <div className="mt-10 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="label-caps text-[11px] text-muted-foreground">Course pathway</p>
+            <h2 className="mt-1 text-2xl">LESSONS</h2>
+          </div>
+          <p className="text-xs text-muted-foreground">Open the notes or practise a sign on camera.</p>
+        </div>
+        <div className="mt-4 grid gap-5">
           {lessons.map((lesson, i) => {
             const complete = s.completed.has(lesson.id);
+            const lessonSigns = (signs.data ?? []).filter((sign) => sign.lesson_id === lesson.id);
+            const firstSign = lessonSigns[0];
             return (
-              <Link
+              <article
                 key={lesson.id}
-                to="/learn/$lessonSlug"
-                params={{ lessonSlug: lesson.slug }}
-                className="ink flex flex-wrap items-center justify-between gap-3 rounded-xl bg-card p-4 transition-transform hover:-translate-y-0.5"
+                className="ink-lg hover-lift grid gap-4 rounded-2xl bg-card p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
               >
-                <div className="flex items-start gap-3">
+                <div className="flex min-w-0 items-start gap-4">
                   {complete ? (
-                    <CheckCircle2 className="mt-0.5 h-5 w-5" />
+                    <CheckCircle2 className="mt-0.5 h-7 w-7 shrink-0 text-primary" />
                   ) : (
-                    <Circle className="mt-0.5 h-5 w-5 text-muted-foreground" />
+                    <Circle className="mt-0.5 h-7 w-7 shrink-0 text-muted-foreground" />
                   )}
-                  <div>
-                    <p className="label-caps text-sm">
+                  <div className="min-w-0">
+                    <h3 className="label-caps text-base break-words sm:text-lg">
                       {i + 1}. {lesson.title}
+                    </h3>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      {lesson.summary}
                     </p>
-                    <p className="mt-1 text-xs text-muted-foreground">{lesson.summary}</p>
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-muted-foreground">
+                      <span className="label-caps flex items-center gap-1.5">
+                        <Clock className="h-4 w-4" /> {lesson.estimated_minutes} min
+                      </span>
+                      <span className="label-caps flex items-center gap-1.5">
+                        <BookOpen className="h-4 w-4" /> {lessonSigns.length} signs
+                      </span>
+                      {complete ? <span className="label-caps">Completed</span> : null}
+                    </div>
                   </div>
                 </div>
-                <span className="label-caps flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Clock className="h-3.5 w-3.5" /> {lesson.estimated_minutes} min
-                </span>
-              </Link>
+                <div className="flex flex-wrap gap-2 sm:max-w-44 sm:justify-end">
+                  <Button asChild className="ink ink-press h-auto rounded-xl px-4 py-2.5 label-caps">
+                    <Link to="/learn/$lessonSlug" params={{ lessonSlug: lesson.slug }}>
+                      Open lesson <MoveRight />
+                    </Link>
+                  </Button>
+                  {firstSign ? (
+                    <Button
+                      asChild
+                      variant="secondary"
+                      className="ink ink-press h-auto rounded-xl px-4 py-2.5 label-caps"
+                    >
+                      <Link to="/practice" search={{ sign: firstSign.slug }}>
+                        <Camera /> Practise
+                      </Link>
+                    </Button>
+                  ) : null}
+                </div>
+              </article>
             );
           })}
+          {lessons.length === 0 ? (
+            <div className="ink rounded-xl bg-card p-5 text-sm text-muted-foreground">
+              Lessons for this course are being prepared. Choose another course from the catalogue.
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
