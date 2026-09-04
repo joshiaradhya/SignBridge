@@ -1,9 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
 import { RequireAuth } from "@/components/RequireAuth";
 import { lessonsQuery, signsQuery, type Sign } from "@/lib/signbridge";
 import { SignVisual } from "@/components/SignVisual";
+import { useAuth } from "@/hooks/useAuth";
+import { progressQuery, recordActivity } from "@/lib/learning";
+
 
 export const Route = createFileRoute("/learn/$lessonSlug")({
   head: () => ({
