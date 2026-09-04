@@ -316,6 +316,17 @@ function CallRoom() {
         }
       };
 
+      // Some browsers (notably older Safari) report progress only here.
+      pc.oniceconnectionstatechange = () => {
+        const s = pc.iceConnectionState;
+        if (s === "connected" || s === "completed") {
+          setConnected(true);
+          setStatus("Live connection");
+        } else if (s === "checking") {
+          setStatus("Connecting to your partner…");
+        }
+      };
+
       channel
         .on("broadcast", { event: "offer" }, async ({ payload }) => {
           if (!payload?.from || payload.from === userId) return;
