@@ -222,7 +222,22 @@ function Practice() {
         confidence: analysis.score,
         feedback: analysis.feedback,
       });
+
+      // Practising a sign counts towards the lesson (and therefore the course) it belongs to.
+      const lessonId = activeSign.lesson_id;
+      if (lessonId && analysis.score >= 50) {
+        await recordActivity(user.id, "lesson", lessonId).catch(() => {});
+        setProgressNote("Lesson marked as practised — your course progress is updated.");
+      } else {
+        await recordActivity(user.id, "practice").catch(() => {});
+        setProgressNote(null);
+      }
+      await queryClient.invalidateQueries({ queryKey: ["lesson-progress"] });
+      await queryClient.invalidateQueries({ queryKey: ["daily-activity"] });
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      await queryClient.invalidateQueries({ queryKey: ["attempt-stats"] });
     }
+
   }
 
 
