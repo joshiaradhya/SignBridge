@@ -245,6 +245,9 @@ function CallRoom() {
       const startOffer = async (force = false) => {
         if (!peer || userId < peer) return;
         if (makingOffer) return;
+        // Once the answer is in we are done negotiating — re-offering here is what
+        // used to restart the handshake every second and stop ICE from ever finishing.
+        if (pc.remoteDescription && pc.signalingState === "stable") return;
         if (pc.signalingState === "have-local-offer") {
           if (force && pc.localDescription) {
             send("offer", { from: userId, sdp: pc.localDescription });
