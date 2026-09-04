@@ -1,9 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
 import { RequireAuth } from "@/components/RequireAuth";
 import { lessonsQuery, signsQuery, type Sign } from "@/lib/signbridge";
 import { SignVisual } from "@/components/SignVisual";
+import { useAuth } from "@/hooks/useAuth";
+import { progressQuery, recordActivity } from "@/lib/learning";
+
 
 export const Route = createFileRoute("/learn/$lessonSlug")({
   head: () => ({
@@ -93,9 +96,21 @@ function LessonPage() {
   const { lessonSlug } = Route.useParams();
   const lessons = useQuery(lessonsQuery);
   const signs = useQuery(signsQuery);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const progress = useQuery(progressQuery(user?.id));
 
   const lesson = (lessons.data ?? []).find((l) => l.slug === lessonSlug);
   const lessonSigns = lesson ? (signs.data ?? []).filter((s) => s.lesson_id === lesson.id) : [];
+  const done = !!lesson && (progress.data ?? []).some((p) => p.lesson_id === lesson.id);
+
+  async function markComplete() {
+    if (!user || !lesson) return;
+    await recordActivity(user.id, "lesson", lesson.id);
+    await queryClient.invalidateQueries({ queryKey: ["lesson-progress"] });
+    await queryClient.invalidateQueries({ queryKey: ["daily-activity"] });
+    await queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
+  }
 
   return (
     <div className="min-h-screen">
@@ -122,6 +137,15 @@ function LessonPage() {
                 <p className="mt-3 text-xs text-muted-foreground">
                   Reference source: {lesson.source}
                 </p>
+                <button
+                  onClick={() => void markComplete()}
+                  disabled={done}
+                  className={`ink ink-press label-caps mt-5 rounded-xl px-4 py-2 text-xs ${
+                    done ? "bg-accent" : "bg-background"
+                  }`}
+                >
+                  {done ? "✓ Lesson completed" : "Mark lesson complete"}
+                </button>
               </div>
 
               <div className="mt-8 space-y-8">

@@ -12,6 +12,9 @@ import {
 } from "@/lib/signconnect.functions";
 
 export const Route = createFileRoute("/connect/")({
+  validateSearch: (search: Record<string, unknown>): { auto?: boolean } =>
+    search["auto"] === true || search["auto"] === "true" ? { auto: true } : {},
+
   head: () => ({
     meta: [
       { title: "SignConnect — live sign video calls with captions | SignBridge" },
@@ -42,8 +45,24 @@ const INTERESTS = ["Everyday chat", "Travel", "Study", "Gaming", "Work"] as cons
 
 type Screen = "choose" | "filters" | "private";
 
+type Prefs = { language: string; level: string; interests: string[] };
+
+const PREFS_KEY = "signconnect:prefs";
+
+function readPrefs(): Prefs {
+  if (typeof window === "undefined") return { language: "EITHER", level: "beginner", interests: [] };
+  try {
+    const raw = window.localStorage.getItem(PREFS_KEY);
+    if (raw) return { language: "EITHER", level: "beginner", interests: [], ...JSON.parse(raw) };
+  } catch {
+    /* fall through to defaults */
+  }
+  return { language: "EITHER", level: "beginner", interests: [] };
+}
+
 function ConnectLanding() {
   const navigate = useNavigate();
+  const { auto } = Route.useSearch();
   const findPartner = useServerFn(findPartnerFn);
   const pollQueue = useServerFn(pollQueueFn);
   const cancelQueue = useServerFn(cancelQueueFn);
@@ -61,6 +80,35 @@ function ConnectLanding() {
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [createdRoom, setCreatedRoom] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoStarted = useRef(false);
+
+  // Restore the last used matchmaking preferences.
+  useEffect(() => {
+    const p = readPrefs();
+    setLanguage(p.language);
+    setLevel(p.level);
+    setInterests(p.interests);
+  }, []);
+
+  // "Skip" sends us back here with ?auto — jump straight into the queue again.
+  useEffect(() => {
+    if (!auto || autoStarted.current) return;
+    autoStarted.current = true;
+    const p = readPrefs();
+    setScreen("filters");
+    setBusy(true);
+    void findPartner({ data: p })
+      .then((res) => {
+        if (res.status === "matched" && res.roomId) {
+          void navigate({ to: "/connect/$roomId", params: { roomId: res.roomId } });
+        } else if (res.queueId) {
+          setQueueId(res.queueId);
+        }
+      })
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Something went wrong"))
+      .finally(() => setBusy(false));
+  }, [auto, findPartner, navigate]);
+
 
   useEffect(() => {
     if (!queueId) return;
@@ -208,7 +256,18 @@ function ConnectLanding() {
                 className="ink ink-press label-caps rounded-xl bg-accent px-5 py-3 text-sm"
                 onClick={() =>
                   run(
-                    () => findPartner({ data: { language, level, interests } }),
+                    () => {
+                      try {
+                        window.localStorage.setItem(
+                          PREFS_KEY,
+                          JSON.stringify({ language, level, interests }),
+                        );
+                      } catch {
+                        /* preferences are a nicety */
+                      }
+                      return findPartner({ data: { language, level, interests } });
+                    },
+
                     (res) => {
                       if (res.status === "matched" && res.roomId) {
                         navigate({ to: "/connect/$roomId", params: { roomId: res.roomId } });

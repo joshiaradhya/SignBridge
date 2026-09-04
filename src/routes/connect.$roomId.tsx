@@ -96,7 +96,15 @@ function CallRoom() {
         if (!navigator.mediaDevices?.getUserMedia) {
           throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
         }
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        } catch (first) {
+          // Some laptops fail the combined request (mic busy / no mic) — fall back to video only.
+          const n = (first as { name?: string })?.name ?? "";
+          if (n === "NotAllowedError" || n === "SecurityError") throw first;
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+
       } catch (err) {
         const name = (err as { name?: string })?.name ?? "";
         setMediaError(
@@ -195,12 +203,35 @@ function CallRoom() {
       };
 
       // Only the peer with the larger id creates the offer (the "impolite" side).
-      const startOffer = async () => {
+      // `force` re-broadcasts an offer we already made: the very first offer is often
+      // sent before the other side has finished subscribing, so it is simply lost.
+      const startOffer = async (force = false) => {
         if (!peer || userId < peer) return;
-        if (makingOffer || pc.signalingState !== "stable") return;
+        if (makingOffer) return;
+        if (pc.signalingState === "have-local-offer") {
+          if (force && pc.localDescription) {
+            send("offer", { from: userId, sdp: pc.localDescription });
+          }
+          return;
+        }
+        if (pc.signalingState !== "stable") return;
         try {
           makingOffer = true;
           await pc.setLocalDescription(await pc.createOffer());
+          send("offer", { from: userId, sdp: pc.localDescription });
+        } catch {
+          /* retried by the heartbeat below */
+        } finally {
+          makingOffer = false;
+        }
+      };
+
+      // Throw away a stalled negotiation and start a fresh one with new ICE candidates.
+      const renegotiate = async () => {
+        if (!peer || userId < peer) return;
+        try {
+          makingOffer = true;
+          await pc.setLocalDescription(await pc.createOffer({ iceRestart: true }));
           send("offer", { from: userId, sdp: pc.localDescription });
         } catch {
           /* retried by the heartbeat below */
@@ -215,6 +246,7 @@ function CallRoom() {
       pc.onnegotiationneeded = () => {
         void startOffer();
       };
+
 
       pc.onconnectionstatechange = () => {
         const s = pc.connectionState;
@@ -283,10 +315,12 @@ function CallRoom() {
         })
         .on("broadcast", { event: "hello" }, ({ payload }) => {
           if (!payload?.from || payload.from === userId) return;
+          const isNewPeer = peer !== payload.from;
           peer = payload.from;
           setPeerId(payload.from);
           if (!payload.reply) send("hello", { from: userId, reply: true });
-          void startOffer();
+          // A peer that just (re)appeared may have missed our earlier offer.
+          void startOffer(!isNewPeer);
         })
         .subscribe((s) => {
           if (s !== "SUBSCRIBED") return;
@@ -305,12 +339,25 @@ function CallRoom() {
 
       // Re-announce ourselves until the media actually flows. This covers the case
       // where one side subscribed to the channel before the other was listening,
-      // and retries the offer if the first one was lost.
+      // and re-sends the offer if the first one was lost (which is what stalled
+      // desktop-to-desktop calls: both tabs subscribe at almost the same moment).
+      let beats = 0;
       const heartbeat = window.setInterval(() => {
-        if (pc.connectionState === "connected" || pc.connectionState === "closed") return;
+        const s = pc.connectionState;
+        if (s === "connected" || s === "closed") {
+          beats = 0;
+          return;
+        }
+        beats += 1;
         send("hello", { from: userId, reply: false });
-        void startOffer();
+        // Still stuck after ~10s: tear the negotiation down and try fresh ICE.
+        if (beats % 4 === 0 && (pc.signalingState === "have-local-offer" || s === "failed")) {
+          void renegotiate();
+        } else {
+          void startOffer(true);
+        }
       }, 2500);
+
 
       cleanup = () => {
         window.clearInterval(heartbeat);
@@ -524,12 +571,14 @@ function CallRoom() {
               className="ink ink-press label-caps rounded-xl bg-accent px-4 py-2 text-sm"
               onClick={async () => {
                 await leaveRoomCall({ data: { roomId } }).catch(() => {});
-                navigate({ to: "/connect" });
+                // Skip means "next partner", so go straight back into matchmaking.
+                navigate({ to: "/connect", search: { auto: true } });
               }}
             >
               Skip
             </button>
           ) : null}
+
           <button className="ink ink-press label-caps rounded-xl bg-destructive/20 px-4 py-2 text-sm" onClick={leave}>
             Leave
           </button>

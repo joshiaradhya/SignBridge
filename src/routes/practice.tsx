@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
 import { signsQuery, lessonsQuery } from "@/lib/signbridge";
-import { coursesQuery, DIFFICULTIES, type Difficulty } from "@/lib/learning";
+import { coursesQuery, DIFFICULTIES, recordActivity, type Difficulty } from "@/lib/learning";
+
 import { SignVisual } from "@/components/SignVisual";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,6 +52,12 @@ function Practice() {
   const [lang, setLang] = useState<"all" | "ASL" | "ISL">("all");
   const [level, setLevel] = useState<"all" | Difficulty>("all");
   const [search, setSearch] = useState("");
+  // Arriving from "Try it on camera" should show that sign only, not the whole library.
+  const [browseAll, setBrowseAll] = useState(!signParam);
+  const [progressNote, setProgressNote] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+
 
   const courses = useQuery(coursesQuery);
   const allSigns = signs.data ?? [];
@@ -92,6 +99,14 @@ function Practice() {
   }, []);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
+
+  useEffect(() => {
+    if (!signParam) return;
+    setSelected(signParam);
+    setBrowseAll(false);
+    setResult(null);
+  }, [signParam]);
+
 
   async function startCamera() {
     setError(null);
@@ -211,7 +226,22 @@ function Practice() {
         confidence: analysis.score,
         feedback: analysis.feedback,
       });
+
+      // Practising a sign counts towards the lesson (and therefore the course) it belongs to.
+      const lessonId = activeSign.lesson_id;
+      if (lessonId && analysis.score >= 50) {
+        await recordActivity(user.id, "lesson", lessonId).catch(() => {});
+        setProgressNote("Lesson marked as practised — your course progress is updated.");
+      } else {
+        await recordActivity(user.id, "practice").catch(() => {});
+        setProgressNote(null);
+      }
+      await queryClient.invalidateQueries({ queryKey: ["lesson-progress"] });
+      await queryClient.invalidateQueries({ queryKey: ["daily-activity"] });
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      await queryClient.invalidateQueries({ queryKey: ["attempt-stats"] });
     }
+
   }
 
 
@@ -298,6 +328,12 @@ function Practice() {
                     </p>
                   </div>
                   <p className="mt-2 text-sm leading-relaxed">{result.feedback}</p>
+                  {progressNote ? (
+                    <p className="ink mt-3 rounded-xl bg-card p-3 text-xs leading-relaxed">
+                      {progressNote}
+                    </p>
+                  ) : null}
+
 
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     {result.criteria.map((c) => (
@@ -350,85 +386,18 @@ function Practice() {
 
             <section className="ink-lg rounded-2xl bg-card p-4 sm:p-6">
               <h2 className="text-xl">REFERENCE</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Categorised the same way as the course catalogue — filter, then pick a sign.
-              </p>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Chip active={lang === "all"} onClick={() => setLang("all")} label="All" />
-                <Chip active={lang === "ASL"} onClick={() => setLang("ASL")} label="ASL" />
-                <Chip active={lang === "ISL"} onClick={() => setLang("ISL")} label="ISL" />
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Chip active={level === "all"} onClick={() => setLevel("all")} label="Any level" />
-                {DIFFICULTIES.map((d) => (
-                  <Chip
-                    key={d.key}
-                    active={level === d.key}
-                    onClick={() => setLevel(d.key)}
-                    label={d.label}
-                  />
-                ))}
-              </div>
-              <div className="mt-2">
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search a sign…"
-                  className="ink ink-focus w-full rounded-xl bg-background px-3 py-2 text-sm outline-none"
-                />
-              </div>
-
-              <div className="mt-4 max-h-[420px] space-y-4 overflow-y-auto pr-1">
-                {groups.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No signs match these filters yet — try another category.
-                  </p>
-                ) : null}
-                {groups.map((g) => (
-                  <div key={g.key}>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="label-caps text-[11px]">{g.title}</span>
-                      <span className="ink label-caps rounded-full bg-background px-2 py-0.5 text-[9px]">
-                        {g.language}
-                      </span>
-                      {g.difficulty ? (
-                        <span className="label-caps text-[9px] text-muted-foreground">
-                          {g.difficulty}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="mt-2 grid gap-2">
-                      {g.signs.map((s) => {
-                        const isActive = s.id === activeSign?.id;
-                        return (
-                          <button
-                            key={s.id}
-                            onClick={() => {
-                              setSelected(s.slug);
-                              setResult(null);
-                            }}
-                            className={`ink ink-press hover-lift rounded-xl px-3 py-2 text-left text-sm ${
-                              isActive ? "bg-accent" : "bg-background"
-                            }`}
-                          >
-                            <span className="label-caps text-xs">{s.gloss}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">{s.meaning}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
 
               {activeSign ? (
-                <div className="mt-5">
-                  <div className="ink overflow-hidden rounded-xl">
+                <div className="mt-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="ink label-caps rounded-full bg-accent px-3 py-1 text-[11px]">
+                      {activeSign.gloss}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{activeSign.meaning}</span>
+                  </div>
+                  <div className="ink mt-3 overflow-hidden rounded-xl">
                     <SignVisual sign={activeSign} />
                   </div>
-
                   <p className="mt-3 text-sm leading-relaxed">{activeSign.movement}</p>
                   {activeLesson ? (
                     <Link
@@ -441,7 +410,97 @@ function Practice() {
                   ) : null}
                 </div>
               ) : null}
+
+              <button
+                onClick={() => setBrowseAll((v) => !v)}
+                className="ink ink-press label-caps mt-5 w-full rounded-xl bg-background px-3 py-2 text-[11px]"
+              >
+                {browseAll ? "Hide the full sign library" : "Browse all signs"}
+              </button>
+
+              {browseAll ? (
+                <>
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    Categorised the same way as the course catalogue — filter, then pick a sign.
+                  </p>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Chip active={lang === "all"} onClick={() => setLang("all")} label="All" />
+                    <Chip active={lang === "ASL"} onClick={() => setLang("ASL")} label="ASL" />
+                    <Chip active={lang === "ISL"} onClick={() => setLang("ISL")} label="ISL" />
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Chip
+                      active={level === "all"}
+                      onClick={() => setLevel("all")}
+                      label="Any level"
+                    />
+                    {DIFFICULTIES.map((d) => (
+                      <Chip
+                        key={d.key}
+                        active={level === d.key}
+                        onClick={() => setLevel(d.key)}
+                        label={d.label}
+                      />
+                    ))}
+                  </div>
+                  <div className="mt-2">
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search a sign…"
+                      className="ink ink-focus w-full rounded-xl bg-background px-3 py-2 text-sm outline-none"
+                    />
+                  </div>
+
+                  <div className="mt-4 max-h-[420px] space-y-4 overflow-y-auto pr-1">
+                    {groups.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No signs match these filters yet — try another category.
+                      </p>
+                    ) : null}
+                    {groups.map((g) => (
+                      <div key={g.key}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="label-caps text-[11px]">{g.title}</span>
+                          <span className="ink label-caps rounded-full bg-background px-2 py-0.5 text-[9px]">
+                            {g.language}
+                          </span>
+                          {g.difficulty ? (
+                            <span className="label-caps text-[9px] text-muted-foreground">
+                              {g.difficulty}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="mt-2 grid gap-2">
+                          {g.signs.map((s) => {
+                            const isActive = s.id === activeSign?.id;
+                            return (
+                              <button
+                                key={s.id}
+                                onClick={() => {
+                                  setSelected(s.slug);
+                                  setResult(null);
+                                }}
+                                className={`ink ink-press hover-lift rounded-xl px-3 py-2 text-left text-sm ${
+                                  isActive ? "bg-accent" : "bg-background"
+                                }`}
+                              >
+                                <span className="label-caps text-xs">{s.gloss}</span>
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  {s.meaning}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : null}
             </section>
+
           </div>
         </div>
       </div>
