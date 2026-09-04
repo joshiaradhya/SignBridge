@@ -563,12 +563,14 @@ function CallRoom() {
               className="ink ink-press label-caps rounded-xl bg-accent px-4 py-2 text-sm"
               onClick={async () => {
                 await leaveRoomCall({ data: { roomId } }).catch(() => {});
-                navigate({ to: "/connect" });
+                // Skip means "next partner", so go straight back into matchmaking.
+                navigate({ to: "/connect", search: { auto: true } });
               }}
             >
               Skip
             </button>
           ) : null}
+
           <button className="ink ink-press label-caps rounded-xl bg-destructive/20 px-4 py-2 text-sm" onClick={leave}>
             Leave
           </button>
