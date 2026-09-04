@@ -160,10 +160,4 @@ function LessonPage() {
       </RequireAuth>
     </div>
   );
-
-        </div>
-      </div>
-      </RequireAuth>
-    </div>
-  );
 }
