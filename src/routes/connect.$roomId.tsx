@@ -233,7 +233,8 @@ function CallRoom() {
 
       const drainIce = async () => {
         while (pendingIce.length) {
-          const c = pendingIce.shift()!;
+          const c = pendingIce.shift();
+          if (!c) continue;
           await pc.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
         }
       };
@@ -265,8 +266,13 @@ function CallRoom() {
       // Throw away a stalled negotiation and start a fresh one with new ICE candidates.
       const renegotiate = async () => {
         if (!peer || userId < peer) return;
+        if (makingOffer || pc.signalingState === "closed") return;
         try {
           makingOffer = true;
+          if (pc.signalingState === "have-local-offer") {
+            await pc.setLocalDescription({ type: "rollback" });
+          }
+          if (pc.signalingState !== "stable") return;
           await pc.setLocalDescription(await pc.createOffer({ iceRestart: true }));
           send("offer", { from: userId, sdp: pc.localDescription });
         } catch {
@@ -281,6 +287,9 @@ function CallRoom() {
       };
       pc.onnegotiationneeded = () => {
         void startOffer();
+      };
+      pc.onsignalingstatechange = () => {
+        if (pc.signalingState === "stable" && pc.remoteDescription) void drainIce();
       };
 
 
@@ -359,6 +368,10 @@ function CallRoom() {
           void startOffer(!isNewPeer);
         })
         .subscribe((s) => {
+          if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") {
+            setStatus("Reconnecting to the call…");
+            return;
+          }
           if (s !== "SUBSCRIBED") return;
           subscribed = true;
           void channel.send({
@@ -367,7 +380,8 @@ function CallRoom() {
             payload: { from: userId, reply: false },
           });
           while (outbox.length) {
-            const m = outbox.shift()!;
+            const m = outbox.shift();
+            if (!m) continue;
             void channel.send({ type: "broadcast", event: m.event, payload: m.payload });
           }
           void startOffer();
