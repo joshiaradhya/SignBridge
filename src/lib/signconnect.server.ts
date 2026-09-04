@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 
 const PROMPTS = [
   "Introduce yourself",
@@ -180,7 +181,7 @@ export async function sendCallSignal(
     roomId: string;
     recipientId: string;
     signalType: "offer" | "answer" | "ice";
-    payload: Record<string, unknown>;
+    payload: Json;
   },
 ) {
   const state = await roomState(userId, input.roomId);
