@@ -59,7 +59,7 @@ function Home() {
             <p className="ink mt-8 rounded-xl bg-background p-5 text-sm leading-relaxed sm:text-base">
               SignBridge is a sign-language-first learning space, not a translator. Read the
               documented sign, study the annotated illustration, then turn on your camera and
-              practise the motion yourself.
+              practice the motion yourself.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
