@@ -195,16 +195,16 @@ function CallRoom() {
         }
       };
 
+      // Only the peer with the larger id creates the offer (the "impolite" side).
       const startOffer = async () => {
-        if (offering || !peer || userId < peer) return; // larger id = impolite = offerer
-        offering = true;
+        if (!peer || userId < peer) return;
+        if (makingOffer || pc.signalingState !== "stable") return;
         try {
           makingOffer = true;
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
+          await pc.setLocalDescription(await pc.createOffer());
           send("offer", { from: userId, sdp: pc.localDescription });
         } catch {
-          offering = false;
+          /* retried by the heartbeat below */
         } finally {
           makingOffer = false;
         }
@@ -214,11 +214,9 @@ function CallRoom() {
         if (e.candidate) send("ice", { from: userId, candidate: e.candidate.toJSON() });
       };
       pc.onnegotiationneeded = () => {
-        if (peer && userId > peer && pc.signalingState === "stable" && offering) {
-          offering = false;
-          void startOffer();
-        }
+        void startOffer();
       };
+
       pc.onconnectionstatechange = () => {
         const s = pc.connectionState;
         if (s === "connected") {
