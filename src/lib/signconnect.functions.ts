@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Json } from "@/integrations/supabase/types";
 
 export const findPartnerFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -62,7 +63,7 @@ export const sendCallSignalFn = createServerFn({ method: "POST" })
     roomId: string;
     recipientId: string;
     signalType: "offer" | "answer" | "ice";
-    payload: Record<string, unknown>;
+    payload: Json;
   }) => d)
   .handler(async ({ data, context }) => {
     const { sendCallSignal } = await import("./signconnect.server");
