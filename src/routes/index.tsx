@@ -25,17 +25,21 @@ export const Route = createFileRoute("/")({
 const pillars = [
   {
     title: "LEARN",
+    to: "/learn" as const,
     body: "Documentation-style lessons: annotated illustrations, handshape, location, movement and the mistake to avoid. No video required.",
   },
   {
     title: "SIGNLAB",
+    to: "/practice" as const,
     body: "A camera practice studio with mirror mode, so you can watch your own hands while you copy the reference notes.",
   },
   {
     title: "PROGRESS",
+    to: "/dashboard" as const,
     body: "Every practice attempt is scored and saved, so you can see which signs still need work.",
   },
 ];
+
 
 function Home() {
   return (
