@@ -158,6 +158,41 @@ export type Database = {
           },
         ]
       }
+      course_quiz_progress: {
+        Row: {
+          completed_quizzes: number
+          correct_answers: number
+          course_id: string
+          total_attempts: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_quizzes?: number
+          correct_answers?: number
+          course_id: string
+          total_attempts?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_quizzes?: number
+          correct_answers?: number
+          course_id?: string
+          total_attempts?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_quiz_progress_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courses: {
         Row: {
           created_at: string
