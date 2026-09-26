@@ -9,6 +9,7 @@ import {
   findPartnerFn,
   joinRoomFn,
   pollQueueFn,
+  roomStateFn,
 } from "@/lib/signconnect.functions";
 
 export const Route = createFileRoute("/connect/")({
@@ -68,6 +69,7 @@ function ConnectLanding() {
   const cancelQueue = useServerFn(cancelQueueFn);
   const createRoom = useServerFn(createRoomFn);
   const joinRoom = useServerFn(joinRoomFn);
+  const roomStateCall = useServerFn(roomStateFn);
 
   const [screen, setScreen] = useState<Screen>("choose");
   const [language, setLanguage] = useState<string>("EITHER");
@@ -127,9 +129,8 @@ function ConnectLanding() {
   useEffect(() => {
     if (!createdRoom) return;
     const id = setInterval(async () => {
-      const { roomStateFn } = await import("@/lib/signconnect.functions");
       try {
-        const state = await roomStateFn({ data: { roomId: createdRoom } });
+        const state = await roomStateCall({ data: { roomId: createdRoom } });
         if (state.participants.length >= 2) {
           navigate({ to: "/connect/$roomId", params: { roomId: createdRoom } });
         }
@@ -138,7 +139,7 @@ function ConnectLanding() {
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [createdRoom, navigate]);
+  }, [createdRoom, navigate, roomStateCall]);
 
   async function run<T>(fn: () => Promise<T>, after: (v: T) => void) {
     setBusy(true);

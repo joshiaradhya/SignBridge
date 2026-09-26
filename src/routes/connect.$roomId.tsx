@@ -235,18 +235,30 @@ function CallRoom() {
       // queue signalling messages until the channel is actually subscribed
       let subscribed = false;
       const outbox: { event: string; payload: Record<string, unknown> }[] = [];
+      // Server-function calls are HTTP requests. Keep them ordered so an ICE
+      // candidate cannot overtake the offer it belongs to on the way to Postgres.
+      // Out-of-order signaling was leaving both room types permanently on
+      // "Waiting for your partner" on slower connections.
+      let signalWrite: Promise<unknown> = Promise.resolve();
       const send = (event: string, payload: Record<string, unknown>) => {
         const message = { ...payload, from: userId, to: peer };
         if (event === "offer" || event === "answer" || event === "ice") {
           if (!peer) return;
-          void fns.current.sendCallSignal({
-            data: {
-              roomId,
-              recipientId: peer,
-              signalType: event,
-              payload: message,
-            },
-          });
+          const recipientId = peer;
+          signalWrite = signalWrite
+            .then(() =>
+              fns.current.sendCallSignal({
+                data: {
+                  roomId,
+                  recipientId,
+                  signalType: event,
+                  payload: message,
+                },
+              }),
+            )
+            .catch(() => {
+              if (!cancelled) setStatus("Could not exchange connection data. Please retry.");
+            });
         } else if (subscribed) void channel.send({ type: "broadcast", event, payload: message });
         else outbox.push({ event, payload: message });
       };
@@ -259,7 +271,16 @@ function CallRoom() {
       let makingOffer = false;
       let ignoreOffer = false;
       const pendingIce: RTCIceCandidateInit[] = [];
+      const pendingLocalIce: RTCIceCandidateInit[] = [];
+      let initialDescriptionSent = false;
       const seenSignals = new Set<number>();
+
+      const sendPendingLocalIce = () => {
+        while (pendingLocalIce.length) {
+          const candidate = pendingLocalIce.shift();
+          if (candidate) send("ice", { candidate });
+        }
+      };
 
       const drainIce = async () => {
         while (pendingIce.length) {
@@ -305,11 +326,14 @@ function CallRoom() {
         if (pc.signalingState !== "stable") return;
         try {
           makingOffer = true;
+          initialDescriptionSent = false;
           await pc.setLocalDescription(await pc.createOffer());
           // Include gathered candidates in the offer itself. This makes joining reliable
           // even when early trickle-ICE broadcasts were sent before the peer subscribed.
           await waitForIceGathering();
           send("offer", { sdp: pc.localDescription });
+          initialDescriptionSent = true;
+          sendPendingLocalIce();
         } catch {
           /* retried by the heartbeat below */
         } finally {
@@ -323,6 +347,7 @@ function CallRoom() {
         if (makingOffer || pc.signalingState === "closed") return;
         try {
           makingOffer = true;
+          initialDescriptionSent = false;
           if (pc.signalingState === "have-local-offer") {
             await pc.setLocalDescription({ type: "rollback" });
           }
@@ -330,6 +355,8 @@ function CallRoom() {
           await pc.setLocalDescription(await pc.createOffer({ iceRestart: true }));
           await waitForIceGathering();
           send("offer", { sdp: pc.localDescription });
+          initialDescriptionSent = true;
+          sendPendingLocalIce();
         } catch {
           /* retried by the heartbeat below */
         } finally {
@@ -338,7 +365,12 @@ function CallRoom() {
       };
 
       pc.onicecandidate = (e) => {
-        if (e.candidate) send("ice", { candidate: e.candidate.toJSON() });
+        if (!e.candidate) return;
+        const candidate = e.candidate.toJSON();
+        // The initial SDP must be stored before its trickle candidates. Otherwise
+        // a polling peer can read candidates first and never reach a usable offer.
+        if (!initialDescriptionSent) pendingLocalIce.push(candidate);
+        else send("ice", { candidate });
       };
       pc.onnegotiationneeded = () => {
         void startOffer();
@@ -406,9 +438,12 @@ function CallRoom() {
             if (collision) await pc.setLocalDescription({ type: "rollback" });
             await pc.setRemoteDescription(payload.sdp);
             await drainIce();
+            initialDescriptionSent = false;
             await pc.setLocalDescription(await pc.createAnswer());
             await waitForIceGathering();
             send("answer", { sdp: pc.localDescription });
+            initialDescriptionSent = true;
+            sendPendingLocalIce();
           } catch {
             /* a newer persisted offer can still complete the call */
           }
@@ -466,7 +501,7 @@ function CallRoom() {
 
       let lastSignalId = 0;
       let readingSignals = false;
-      const signalPoll = window.setInterval(async () => {
+      const pollSignals = async () => {
         if (readingSignals || pc.signalingState === "closed") return;
         readingSignals = true;
         try {
@@ -478,7 +513,11 @@ function CallRoom() {
         } finally {
           readingSignals = false;
         }
-      }, 350);
+      };
+      // Fetch immediately: a peer may have sent its offer before this browser
+      // finished subscribing, so waiting for the first interval loses valuable time.
+      void pollSignals();
+      const signalPoll = window.setInterval(() => void pollSignals(), 350);
 
       // Keep announcing ourselves until the handshake completes, but leave a
       // negotiation that is already in flight alone: constantly re-offering (which
