@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Persist per-course quiz attempts and accuracy in a learner-owned table with RLS; quiz answer choices are generated from sign handshape records so content remains aligned with each course.
