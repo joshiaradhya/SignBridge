@@ -14,7 +14,8 @@ import {
   sendCallSignalFn,
   translateSignFn,
 } from "@/lib/signconnect.functions";
-import { classifySegment, loadLandmarker, motionEnergy, type Landmark } from "@/lib/sign-recognizer";
+import { classifyIslSegment } from "@/lib/isl-model";
+import { loadLandmarker, motionEnergy, type Landmark } from "@/lib/sign-recognizer";
 
 export const Route = createFileRoute("/connect/$roomId")({
   head: () => ({
@@ -586,7 +587,9 @@ function CallRoom() {
         const video = localVideo.current;
         if (video && video.readyState >= 2) {
           const res = landmarker.detectForVideo(video, performance.now());
-          const hand = res.landmarks?.[0] as Landmark[] | undefined;
+          // Flatten up to two detected hands. The ISL model uses both hands when
+          // available, rather than guessing a label from the dominant hand alone.
+          const hand = res.landmarks?.flat() as Landmark[] | undefined;
           if (hand) {
             const prev = buffer[buffer.length - 1];
             const energy = prev ? motionEnergy(prev, hand) : 1;
@@ -602,7 +605,7 @@ function CallRoom() {
             const segment = buffer.slice();
             buffer = [];
             quietFrames = 0;
-            const match = classifySegment(segment);
+            const match = await classifyIslSegment(segment);
             if (match && match.confidence >= 0.6) {
               lastEmit = Date.now();
               setDetecting(match.label);

@@ -29,6 +29,8 @@ export type Result = {
   tips: string[];
 };
 
+export type ModelMatch = { label: string; confidence: number; targetLabel: string };
+
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 const closeness = (value: number, ideal: number, tolerance: number) =>
   Math.max(0, 1 - Math.abs(value - ideal) / tolerance);
@@ -36,6 +38,7 @@ const closeness = (value: number, ideal: number, tolerance: number) =>
 export function analyseAttempt(
   m: Metrics,
   sign?: { gloss: string; handshape: string; location: string; movement: string; expression: string },
+  modelMatch?: ModelMatch,
 ): Result {
   const still = m.energy < 0.6;
 
@@ -107,16 +110,24 @@ export function analyseAttempt(
     },
   ];
 
-  const score = clamp(
-    criteria.reduce((sum, c) => sum + c.score, 0) / criteria.length,
-  );
+  const modelRecognisedTarget =
+    modelMatch?.label.trim().toUpperCase() === modelMatch?.targetLabel.trim().toUpperCase();
+  // When a trained model is available, it owns the attempt score. Motion signals
+  // still explain the component tips, but cannot inflate a wrong sign into a pass.
+  const score = modelMatch
+    ? clamp(modelRecognisedTarget ? modelMatch.confidence * 100 : 0)
+    : clamp(criteria.reduce((sum, c) => sum + c.score, 0) / criteria.length);
 
   const weakest = criteria.filter((c) => !c.matched).sort((a, b) => a.score - b.score);
   const tips = weakest.length
     ? weakest.slice(0, 3).map((c) => `${c.label}: ${c.tip}`)
     : ["Everything matched — try the same sign at conversational speed to lock it in."];
 
-  const feedback = still
+  const feedback = modelMatch && !modelRecognisedTarget
+    ? `The ISL model read “${modelMatch.label}” instead of “${modelMatch.targetLabel}”. Slow down and compare the handshape and path with the reference.`
+    : modelMatch && modelRecognisedTarget
+      ? `The ISL model recognised ${modelMatch.targetLabel} with ${Math.round(modelMatch.confidence * 100)}% confidence.`
+    : still
     ? "Barely any movement was detected — make sure your hands are inside the frame and repeat the motion more fully."
     : weakest.length === 0
       ? `Clean attempt at ${sign?.gloss ?? "this sign"} — all four components matched.`

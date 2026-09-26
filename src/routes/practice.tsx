@@ -9,6 +9,9 @@ import { SignVisual } from "@/components/SignVisual";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { analyseAttempt, type Result } from "@/lib/attempt-analysis";
+import { adaptPracticeFeedback } from "@/lib/practice-adaptation";
+import { classifyIslSegment } from "@/lib/isl-model";
+import { loadLandmarker, type Landmark } from "@/lib/sign-recognizer";
 
 export const Route = createFileRoute("/practice")({
   validateSearch: (search: Record<string, unknown>): { sign?: string } =>
@@ -136,6 +139,12 @@ function Practice() {
     const canvas = canvasRef.current;
     if (!video || !canvas || !cameraOn) return;
 
+    const landmarker = await loadLandmarker().catch(() => null);
+    if (!landmarker) {
+      setError("The hand-tracking model could not start. Reload the page and try again.");
+      return;
+    }
+
     setRecording(true);
     setResult(null);
 
@@ -154,6 +163,7 @@ function Practice() {
     let weightSum = 0;
     let faceMotion = 0;
     const energies: number[] = [];
+    const landmarkFrames: Landmark[][] = [];
     const durationMs = 3000;
     const start = performance.now();
 
@@ -162,6 +172,8 @@ function Practice() {
         const elapsed = performance.now() - start;
         setCountdown(Math.max(0, Math.ceil((durationMs - elapsed) / 1000)));
         ctx.drawImage(video, 0, 0, W, H);
+        const hands = landmarker.detectForVideo(video, performance.now()).landmarks?.flat() as Landmark[] | undefined;
+        if (hands?.length) landmarkFrames.push(hands);
         const frame = ctx.getImageData(0, 0, W, H).data;
         if (prev) {
           const previous: Uint8ClampedArray = prev;
@@ -206,7 +218,13 @@ function Practice() {
           )
         : 0;
 
-    const analysis = analyseAttempt(
+    const modelMatch = await classifyIslSegment(landmarkFrames);
+    if (!modelMatch) {
+      setError("The ISL model could not confidently recognise this attempt. Keep both hands in frame and try again.");
+      return;
+    }
+
+    const analysis = adaptPracticeFeedback(analyseAttempt(
       {
         energy,
         detail: sampledPixels > 0 ? activePixels / sampledPixels : 0,
@@ -216,7 +234,8 @@ function Practice() {
         jitter,
       },
       activeSign,
-    );
+      { ...modelMatch, targetLabel: activeSign?.gloss ?? "" },
+    ), user?.id);
     setResult(analysis);
 
     if (user && activeSign) {
