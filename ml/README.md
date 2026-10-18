@@ -15,3 +15,11 @@ artifact exists, the live transcript intentionally emits no guessed labels.
 For production, validate on signers not used for training, inspect per-class precision/recall,
 and only ship labels that match the app's ISL lesson vocabulary. ASL must be trained separately
 from ASLLVD with a distinct `asl-v1.json` model; do not combine the languages.
+
+## Vercel service
+
+`ml/api/index.py` is a dependency-free internal Vercel service that exposes only a health and
+model-status response. It intentionally does **not** receive camera video or run inference yet:
+the app continues to classify landmarks in the browser. When a validated server-side model is
+ready, add a binding from the `app` service and call the injected internal service URL only from
+server-side code.
