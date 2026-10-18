@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/useAuth";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -59,7 +58,11 @@ function AuthPage() {
           emailRedirectTo: `${window.location.origin}${redirectTo ?? "/dashboard"}`,
         },
       });
-      setMessage(error ? error.message : "Account created — you're signed in.");
+      setMessage(
+        error
+          ? error.message
+          : "Account created. Check your email to confirm it, then sign in.",
+      );
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setMessage(error.message);
@@ -67,11 +70,12 @@ function AuthPage() {
     setBusy(false);
   }
 
-  async function oauth(provider: "google" | "apple" | "microsoft", label: string) {
-    const result = await lovable.auth.signInWithOAuth(provider, {
-      redirect_uri: `${window.location.origin}${redirectTo ?? ""}`,
+  async function oauth(provider: "google" | "apple" | "azure", label: string) {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${window.location.origin}${redirectTo ?? "/dashboard"}` },
     });
-    if (result.error) setMessage(`${label} sign-in failed. Try again.`);
+    if (error) setMessage(`${label} sign-in failed. Enable and configure this provider in Supabase Auth first.`);
   }
 
   return (
@@ -143,7 +147,7 @@ function AuthPage() {
               Continue with Apple
             </button>
             <button
-              onClick={() => oauth("microsoft", "Microsoft")}
+              onClick={() => oauth("azure", "Microsoft")}
               className="ink ink-press label-caps w-full rounded-xl bg-background px-5 py-3 text-sm"
             >
               Continue with Microsoft

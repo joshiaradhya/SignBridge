@@ -96,8 +96,9 @@ bun install
 SignBridge uses Supabase for authentication and data storage. To connect it to your own project:
 
 1. Create a project at [supabase.com](https://supabase.com/).
-2. Set the required Supabase URL and anon/public key as environment variables — see how the client is initialized in `src/integrations/supabase` for the exact variable names expected.
+2. Copy `.env.example` to `.env` and set the Supabase values from **Project Settings → API**. Configure the same server-only values in your deployment environment. Never expose `SUPABASE_SERVICE_ROLE_KEY` to the browser.
 3. Apply the SQL migrations in `supabase/migrations` to your project (via the Supabase CLI or dashboard SQL editor) to create the required tables, policies, and seed/fix data.
+4. In **Supabase Dashboard → Authentication → URL Configuration**, add your local and production URLs as redirect URLs. Enable each social provider you intend to show on the sign-in screen (Google, Apple, or Azure/Microsoft) and add its credentials there.
 
 ## Running Locally
 

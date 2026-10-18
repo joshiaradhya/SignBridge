@@ -253,30 +253,6 @@ const FALLBACK: Record<string, string> = {
 };
 
 export async function phraseLabel(label: string) {
-  const key = process.env["LOVABLE_API_KEY"];
   const fallback = FALLBACK[label] ?? `${label.charAt(0)}${label.slice(1).toLowerCase()}.`;
-  if (!key) return { text: fallback };
-  try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You turn a single sign-language gloss into one short, natural English sentence. Reply with the sentence only, max 8 words.",
-          },
-          { role: "user", content: label },
-        ],
-      }),
-    });
-    if (!res.ok) return { text: fallback };
-    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const text = json.choices?.[0]?.message?.content?.trim();
-    return { text: text && text.length < 90 ? text : fallback };
-  } catch {
-    return { text: fallback };
-  }
+  return { text: fallback };
 }
