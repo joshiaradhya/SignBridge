@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [ready, setReady] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const apply = (t: "light" | "dark") => {
@@ -21,6 +22,7 @@ export function ThemeToggle() {
           : "light";
     setTheme(initial);
     document.documentElement.classList.toggle("dark", initial === "dark");
+    setReady(true);
   }, []);
 
   const toggleTheme = () => {
@@ -62,6 +64,7 @@ export function ThemeToggle() {
       ref={buttonRef}
       type="button"
       aria-label="Toggle dark mode"
+      disabled={!ready}
       onClick={toggleTheme}
       className="ink ink-press flex h-8 w-8 items-center justify-center rounded-md bg-card"
       variant="ghost"
