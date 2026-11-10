@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -50,7 +51,7 @@ export function ThemeToggle() {
       !window.matchMedia("(prefers-reduced-motion: reduce)").matches &&
       typeof transitionDocument.startViewTransition === "function"
     ) {
-      transitionDocument.startViewTransition(changeTheme);
+      transitionDocument.startViewTransition(() => flushSync(changeTheme));
     } else {
       changeTheme();
     }
