@@ -124,9 +124,9 @@ export function analyseAttempt(
     : ["Everything matched — try the same sign at conversational speed to lock it in."];
 
   const feedback = modelMatch && !modelRecognisedTarget
-    ? `The ISL model read “${modelMatch.label}” instead of “${modelMatch.targetLabel}”. Slow down and compare the handshape and path with the reference.`
+    ? `The model read “${modelMatch.label}” instead of “${modelMatch.targetLabel}”. Slow down and compare the handshape and path with the reference.`
     : modelMatch && modelRecognisedTarget
-      ? `The ISL model recognised ${modelMatch.targetLabel} with ${Math.round(modelMatch.confidence * 100)}% confidence.`
+      ? `Recognised ${modelMatch.targetLabel} with ${Math.round(modelMatch.confidence * 100)}% confidence.`
     : still
     ? "Barely any movement was detected — make sure your hands are inside the frame and repeat the motion more fully."
     : weakest.length === 0

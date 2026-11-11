@@ -16,6 +16,7 @@ import {
 } from "@/lib/signconnect.functions";
 import { classifyIslSegment } from "@/lib/isl-model";
 import { loadLandmarker, motionEnergy, type Landmark } from "@/lib/sign-recognizer";
+import { classifySignAttempt, normalizeFrame, type Point3D } from "@/lib/ml";
 
 export const Route = createFileRoute("/connect/$roomId")({
   head: () => ({
@@ -78,11 +79,13 @@ function CallRoom() {
   const [status, setStatus] = useState("Camera not started");
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [detecting, setDetecting] = useState<string | null>(null);
+  const [signLang, setSignLang] = useState<"ISL" | "ASL">("ISL");
   const [showReport, setShowReport] = useState(false);
   const [armed, setArmed] = useState(false);
   const [joining, setJoining] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [playbackBlocked, setPlaybackBlocked] = useState(false);
+  const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
 
   const pushCaption = useCallback((c: Caption) => {
     setCaptions((prev) => [...prev.slice(-40), c]);
@@ -108,18 +111,26 @@ function CallRoom() {
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" },
+          video: { facingMode: { ideal: "user" } },
           audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         });
       } catch (first) {
         const name = (first as { name?: string })?.name ?? "";
         if (name === "NotAllowedError" || name === "SecurityError") throw first;
 
-        // A busy or unavailable microphone should not prevent sign video from working.
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" },
-          audio: false,
-        });
+        try {
+          // A busy or unavailable microphone should not prevent sign video from working.
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "user" } },
+            audio: false,
+          });
+        } catch {
+          // Relaxed fallback for cameras that don't support facingMode constraints
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
+        }
       }
 
       streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -155,6 +166,15 @@ function CallRoom() {
     },
     [],
   );
+
+  useEffect(() => {
+    if (armed && localVideo.current && streamRef.current) {
+      if (localVideo.current.srcObject !== streamRef.current) {
+        localVideo.current.srcObject = streamRef.current;
+      }
+      void localVideo.current.play().catch(() => {});
+    }
+  }, [armed]);
 
   useEffect(() => {
     if (!userId || !armed) return;
@@ -209,20 +229,34 @@ function CallRoom() {
       pcRef.current = pc;
       stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
-      const remoteStream = new MediaStream();
-      if (remoteVideo.current) remoteVideo.current.srcObject = remoteStream;
       pc.ontrack = (e) => {
-        const tracks = e.streams[0]?.getTracks() ?? [e.track];
-        tracks.forEach((t) => {
-          if (!remoteStream.getTracks().includes(t)) remoteStream.addTrack(t);
-        });
-        if (remoteVideo.current && remoteVideo.current.srcObject !== remoteStream) {
-          remoteVideo.current.srcObject = remoteStream;
+        const inboundStream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
+        if (remoteVideo.current) {
+          remoteVideo.current.srcObject = inboundStream;
+          remoteVideo.current
+            .play()
+            .then(() => {
+              setPlaybackBlocked(false);
+              setHasRemoteVideo(true);
+              setConnected(true);
+              setStatus("Live connection");
+            })
+            .catch(() => {
+              setPlaybackBlocked(true);
+            });
         }
-        const video = remoteVideo.current;
-        if (video) {
-          void video.play().then(() => setPlaybackBlocked(false)).catch(() => setPlaybackBlocked(true));
-        }
+
+        e.track.onunmute = () => {
+          setHasRemoteVideo(true);
+          setConnected(true);
+          if (remoteVideo.current) {
+            void remoteVideo.current.play().catch(() => setPlaybackBlocked(true));
+          }
+        };
+
+        e.track.onended = () => {
+          setHasRemoteVideo(false);
+        };
       };
 
       const channel = supabase.channel(`room:${roomId}`, {
@@ -236,13 +270,19 @@ function CallRoom() {
       // queue signalling messages until the channel is actually subscribed
       let subscribed = false;
       const outbox: { event: string; payload: Record<string, unknown> }[] = [];
-      // Server-function calls are HTTP requests. Keep them ordered so an ICE
-      // candidate cannot overtake the offer it belongs to on the way to Postgres.
-      // Out-of-order signaling was leaving both room types permanently on
-      // "Waiting for your partner" on slower connections.
       let signalWrite: Promise<unknown> = Promise.resolve();
+
       const send = (event: string, payload: Record<string, unknown>) => {
         const message = { ...payload, from: userId, to: peer };
+
+        // 1. Instant WebSocket broadcast for sub-50ms peer signaling
+        if (subscribed) {
+          void channel.send({ type: "broadcast", event, payload: message });
+        } else {
+          outbox.push({ event, payload: message });
+        }
+
+        // 2. Persistent fallback to Postgres via TanStack Start
         if (event === "offer" || event === "answer" || event === "ice") {
           if (!peer) return;
           const recipientId = peer;
@@ -260,8 +300,7 @@ function CallRoom() {
             .catch(() => {
               if (!cancelled) setStatus("Could not exchange connection data. Please retry.");
             });
-        } else if (subscribed) void channel.send({ type: "broadcast", event, payload: message });
-        else outbox.push({ event, payload: message });
+        }
       };
 
       const addressedToMe = (payload: { from?: string; to?: string | null } | undefined) =>
@@ -274,7 +313,7 @@ function CallRoom() {
       const pendingIce: RTCIceCandidateInit[] = [];
       const pendingLocalIce: RTCIceCandidateInit[] = [];
       let initialDescriptionSent = false;
-      const seenSignals = new Set<number>();
+      const seenSignals = new Set<string>();
 
       const sendPendingLocalIce = () => {
         while (pendingLocalIce.length) {
@@ -291,32 +330,10 @@ function CallRoom() {
         }
       };
 
-      const waitForIceGathering = () =>
-        new Promise<void>((resolve) => {
-          if (pc.iceGatheringState === "complete") {
-            resolve();
-            return;
-          }
-          const finish = () => {
-            if (pc.iceGatheringState !== "complete") return;
-            pc.removeEventListener("icegatheringstatechange", finish);
-            resolve();
-          };
-          pc.addEventListener("icegatheringstatechange", finish);
-          window.setTimeout(() => {
-            pc.removeEventListener("icegatheringstatechange", finish);
-            resolve();
-          }, 2500);
-        });
-
-      // Only the peer with the larger id creates the offer (the "impolite" side).
-      // `force` re-broadcasts an offer we already made: the very first offer is often
-      // sent before the other side has finished subscribing, so it is simply lost.
+      // Immediate offer creation without artificial 2.5s delay
       const startOffer = async (force = false) => {
         if (!peer || userId < peer) return;
         if (makingOffer) return;
-        // Once the answer is in we are done negotiating — re-offering here is what
-        // used to restart the handshake every second and stop ICE from ever finishing.
         if (pc.remoteDescription && pc.signalingState === "stable") return;
         if (pc.signalingState === "have-local-offer") {
           if (force && pc.localDescription) {
@@ -328,10 +345,9 @@ function CallRoom() {
         try {
           makingOffer = true;
           initialDescriptionSent = false;
-          await pc.setLocalDescription(await pc.createOffer());
-          // Include gathered candidates in the offer itself. This makes joining reliable
-          // even when early trickle-ICE broadcasts were sent before the peer subscribed.
-          await waitForIceGathering();
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          // Broadcast offer immediately via trickle ICE
           send("offer", { sdp: pc.localDescription });
           initialDescriptionSent = true;
           sendPendingLocalIce();
@@ -353,8 +369,8 @@ function CallRoom() {
             await pc.setLocalDescription({ type: "rollback" });
           }
           if (pc.signalingState !== "stable") return;
-          await pc.setLocalDescription(await pc.createOffer({ iceRestart: true }));
-          await waitForIceGathering();
+          const offer = await pc.createOffer({ iceRestart: true });
+          await pc.setLocalDescription(offer);
           send("offer", { sdp: pc.localDescription });
           initialDescriptionSent = true;
           sendPendingLocalIce();
@@ -413,19 +429,20 @@ function CallRoom() {
       };
 
       const receiveSignal = async (row: {
-        id: number;
+        id: number | string;
         sender_id: string;
         signal_type: string;
         payload: unknown;
       }) => {
-        if (seenSignals.has(row.id) || row.sender_id === userId) return;
-        seenSignals.add(row.id);
         const payload = row.payload as {
           from?: string;
           to?: string | null;
           sdp?: RTCSessionDescriptionInit;
           candidate?: RTCIceCandidateInit;
         };
+        const sigKey = `${row.signal_type}-${row.sender_id}-${JSON.stringify(payload.candidate?.candidate || payload.sdp?.sdp?.slice(0, 30))}`;
+        if (seenSignals.has(sigKey) || row.sender_id === userId) return;
+        seenSignals.add(sigKey);
         if (!addressedToMe(payload)) return;
         peer = row.sender_id;
         setPeerId(row.sender_id);
@@ -440,17 +457,20 @@ function CallRoom() {
             await pc.setRemoteDescription(payload.sdp);
             await drainIce();
             initialDescriptionSent = false;
-            await pc.setLocalDescription(await pc.createAnswer());
-            await waitForIceGathering();
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            // Send answer immediately
             send("answer", { sdp: pc.localDescription });
             initialDescriptionSent = true;
             sendPendingLocalIce();
-          } catch {
-            /* a newer persisted offer can still complete the call */
+          } catch (err) {
+            console.warn("[WebRTC] Offer handling error:", err);
           }
         } else if (row.signal_type === "answer" && payload.sdp) {
           if (pc.signalingState !== "have-local-offer") return;
-          await pc.setRemoteDescription(payload.sdp).then(drainIce).catch(() => {});
+          await pc.setRemoteDescription(payload.sdp).then(drainIce).catch((err) => {
+            console.warn("[WebRTC] Answer handling error:", err);
+          });
         } else if (row.signal_type === "ice" && payload.candidate) {
           if (!pc.remoteDescription) pendingIce.push(payload.candidate);
           else await pc.addIceCandidate(payload.candidate).catch(() => pendingIce.push(payload.candidate as RTCIceCandidateInit));
@@ -460,6 +480,36 @@ function CallRoom() {
       channel
         .on("broadcast", { event: "caption" }, ({ payload }) => {
           pushCaption(payload as Caption);
+        })
+        .on("broadcast", { event: "offer" }, ({ payload }) => {
+          if (addressedToMe(payload as Record<string, unknown>)) {
+            void receiveSignal({
+              id: `ws-${Date.now()}-${Math.random()}`,
+              sender_id: (payload as { from: string }).from,
+              signal_type: "offer",
+              payload,
+            });
+          }
+        })
+        .on("broadcast", { event: "answer" }, ({ payload }) => {
+          if (addressedToMe(payload as Record<string, unknown>)) {
+            void receiveSignal({
+              id: `ws-${Date.now()}-${Math.random()}`,
+              sender_id: (payload as { from: string }).from,
+              signal_type: "answer",
+              payload,
+            });
+          }
+        })
+        .on("broadcast", { event: "ice" }, ({ payload }) => {
+          if (addressedToMe(payload as Record<string, unknown>)) {
+            void receiveSignal({
+              id: `ws-${Date.now()}-${Math.random()}`,
+              sender_id: (payload as { from: string }).from,
+              signal_type: "ice",
+              payload,
+            });
+          }
         })
         .on("broadcast", { event: "hello" }, ({ payload }) => {
           if (!addressedToMe(payload)) return;
@@ -556,9 +606,16 @@ function CallRoom() {
       cleanup = () => {
         window.clearInterval(heartbeat);
         window.clearInterval(signalPoll);
+        pc.ontrack = null;
+        pc.onicecandidate = null;
+        pc.onconnectionstatechange = null;
+        pc.oniceconnectionstatechange = null;
+        pc.onsignalingstatechange = null;
         pc.close();
         pcRef.current = null;
         channelRef.current = null;
+        if (localVideo.current) localVideo.current.srcObject = null;
+        if (remoteVideo.current) remoteVideo.current.srcObject = null;
         void supabase.removeChannel(channel);
       };
     })();
@@ -570,59 +627,89 @@ function CallRoom() {
   }, [roomId, userId, armed, pushCaption]);
 
 
-  // ---- local sign recognition ----
+  // ---- local sign recognition (throttled to ~13 FPS to keep WebRTC smooth & CPU cool) ----
   useEffect(() => {
     if (!userId || !armed) return;
     let raf = 0;
     let stop = false;
     let buffer: Landmark[][] = [];
+    let normBuffer: Float32Array[] = [];
     let quietFrames = 0;
     let lastEmit = 0;
+    let lastFrameTime = 0;
+    let isProcessing = false;
+    const FRAME_INTERVAL_MS = 75; // ~13 FPS prevents UI thread starvation and audio/video lag
 
     (async () => {
       const landmarker = await loadLandmarker().catch(() => null);
       if (!landmarker || stop) return;
 
       const tick = async () => {
-        const video = localVideo.current;
-        if (video && video.readyState >= 2) {
-          const res = landmarker.detectForVideo(video, performance.now());
-          // Flatten up to two detected hands. The ISL model uses both hands when
-          // available, rather than guessing a label from the dominant hand alone.
-          const hand = res.landmarks?.flat() as Landmark[] | undefined;
-          if (hand) {
-            const prev = buffer[buffer.length - 1];
-            const energy = prev ? motionEnergy(prev, hand) : 1;
-            buffer.push(hand);
-            if (buffer.length > 60) buffer.shift();
-            quietFrames = energy < 0.006 ? quietFrames + 1 : 0;
-          } else {
-            quietFrames += 1;
-          }
+        if (stop) return;
+        const now = performance.now();
 
-          // ~400ms pause closes a segment
-          if (quietFrames >= 10 && buffer.length >= 8 && Date.now() - lastEmit > 2500) {
-            const segment = buffer.slice();
-            buffer = [];
-            quietFrames = 0;
-            const match = await classifyIslSegment(segment);
-            if (match && match.confidence >= 0.6) {
-              lastEmit = Date.now();
-              setDetecting(match.label);
-              const { text } = await fns.current.translateSign({ data: { label: match.label } }).catch(() => ({
-                text: match.label,
-              }));
-              setDetecting(null);
-              const caption: Caption = { senderId: userId, text, timestamp: Date.now() };
-              pushCaption(caption);
-              channelRef.current?.send({ type: "broadcast", event: "caption", payload: caption });
-              fns.current.saveCaption({
-                data: { roomId, label: match.label, confidence: match.confidence, text },
-              }).catch(() => {});
+        // Throttle frame processing to prevent CPU starvation
+        if (now - lastFrameTime >= FRAME_INTERVAL_MS && !isProcessing) {
+          lastFrameTime = now;
+          isProcessing = true;
+
+          try {
+            const video = localVideo.current;
+            if (video && video.readyState >= 2 && video.videoWidth > 0) {
+              const res = landmarker.detectForVideo(video, now);
+              // Flatten up to two detected hands
+              const hand = res.landmarks?.flat() as Landmark[] | undefined;
+              if (hand && hand.length > 0) {
+                const prev = buffer[buffer.length - 1];
+                const energy = prev ? motionEnergy(prev, hand) : 1;
+                buffer.push(hand);
+                if (buffer.length > 40) buffer.shift();
+
+                // Store normalized frame conforming to Schema v2.0.0
+                const left = (res.landmarks?.[0] as Point3D[]) ?? null;
+                const right = (res.landmarks?.[1] as Point3D[]) ?? null;
+                normBuffer.push(normalizeFrame({ leftHand: left, rightHand: right }));
+                if (normBuffer.length > 40) normBuffer.shift();
+
+                quietFrames = energy < 0.008 ? quietFrames + 1 : 0;
+              } else {
+                quietFrames += 1;
+              }
+
+              // ~350-400ms pause closes a segment
+              if (quietFrames >= 5 && buffer.length >= 6 && now - lastEmit > 2200) {
+                const segment = buffer.slice();
+                const normSegment = normBuffer.slice();
+                buffer = [];
+                normBuffer = [];
+                quietFrames = 0;
+                const match = await classifySignAttempt(signLang, normSegment, segment);
+                if (match && match.confidence >= 0.6) {
+                  lastEmit = now;
+                  setDetecting(match.label);
+                  const { text } = await fns.current.translateSign({ data: { label: match.label } }).catch(() => ({
+                    text: match.label,
+                  }));
+                  setDetecting(null);
+                  const caption: Caption = { senderId: userId, text, timestamp: Date.now() };
+                  pushCaption(caption);
+                  channelRef.current?.send({ type: "broadcast", event: "caption", payload: caption });
+                  fns.current.saveCaption({
+                    data: { roomId, label: match.label, confidence: match.confidence, text },
+                  }).catch(() => {});
+                }
+              }
             }
+          } catch (err) {
+            console.warn("[SignConnect Recognition Error]", err);
+          } finally {
+            isProcessing = false;
           }
         }
-        if (!stop) raf = requestAnimationFrame(() => void tick());
+
+        if (!stop) {
+          raf = requestAnimationFrame(() => void tick());
+        }
       };
       void tick();
     })();
@@ -630,8 +717,10 @@ function CallRoom() {
     return () => {
       stop = true;
       cancelAnimationFrame(raf);
+      buffer = [];
+      normBuffer = [];
     };
-  }, [userId, armed, roomId, pushCaption]);
+  }, [userId, armed, roomId, pushCaption, signLang]);
 
   function toggleMute() {
     const track = streamRef.current?.getAudioTracks()[0];
@@ -715,7 +804,7 @@ function CallRoom() {
           </div>
           <div className="ink-lg relative overflow-hidden rounded-2xl bg-card">
             <video ref={remoteVideo} autoPlay playsInline className="aspect-video w-full object-cover" />
-            {!connected ? (
+            {!connected && !hasRemoteVideo ? (
               <p className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
                 Waiting for your partner…
               </p>
@@ -728,7 +817,14 @@ function CallRoom() {
                 type="button"
                 className="ink ink-press label-caps absolute right-3 bottom-3 rounded-lg bg-primary px-3 py-2 text-xs"
                 onClick={() => {
-                  void remoteVideo.current?.play().then(() => setPlaybackBlocked(false));
+                  void remoteVideo.current
+                    ?.play()
+                    .then(() => {
+                      setPlaybackBlocked(false);
+                      setHasRemoteVideo(true);
+                      setConnected(true);
+                    })
+                    .catch(() => {});
                 }}
               >
                 Play partner video
@@ -764,6 +860,28 @@ function CallRoom() {
         </section>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="flex items-center rounded-xl bg-card p-1 border border-border">
+            <button
+              className={`label-caps rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                signLang === "ISL"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setSignLang("ISL")}
+            >
+              ISL
+            </button>
+            <button
+              className={`label-caps rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                signLang === "ASL"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setSignLang("ASL")}
+            >
+              ASL
+            </button>
+          </div>
           <button className="ink ink-press label-caps rounded-xl bg-card px-4 py-2 text-sm" onClick={toggleMute}>
             {muted ? "Unmute" : "Mute"}
           </button>

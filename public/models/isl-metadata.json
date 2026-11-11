@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "schemaVersion": "2.0.0",
+  "language": "ISL",
+  "modelType": "bilstm-attention",
+  "frames": 32,
+  "featuresPerFrame": 222,
+  "inputShape": [1, 32, 222],
+  "inputName": "input",
+  "outputName": "logits",
+  "numClasses": 50,
+  "labels": [
+    "AGAIN", "ALL", "BAD", "BEFORE", "BEST", "BOOK", "BOY", "BUS", "BUT", "CALM",
+    "CAN", "CHAIR", "COME", "DAY", "DOCTOR", "DRINK", "EAT", "FAMILY", "FATHER",
+    "FEW", "FINE", "GIRL", "GIVE", "GOOD", "HAPPY", "HEARING", "HELLO", "HELP",
+    "HOME", "HOUSE", "HOW", "MEETING", "MONEY", "MORE", "MOTHER", "NAME", "NO",
+    "PLEASE", "RIGHT", "SAD", "SAME", "SCHOOL", "SORRY", "STUDENT", "TEA",
+    "TEACHER", "THANK YOU", "TIME", "WATER", "YES"
+  ],
+  "thresholds": {
+    "HELLO": 0.65,
+    "NAMASTE": 0.65,
+    "HELP": 0.65,
+    "WATER": 0.65,
+    "THANK YOU": 0.65,
+    "PLEASE": 0.65,
+    "SORRY": 0.65
+  },
+  "onnxUrl": "/models/isl-bilstm-v1.onnx",
+  "status": "pending_colab_training"
+}

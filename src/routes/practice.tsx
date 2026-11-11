@@ -12,6 +12,7 @@ import { analyseAttempt, type Result } from "@/lib/attempt-analysis";
 import { adaptPracticeFeedback } from "@/lib/practice-adaptation";
 import { classifyIslSegment } from "@/lib/isl-model";
 import { loadLandmarker, type Landmark } from "@/lib/sign-recognizer";
+import { classifySignAttempt, normalizeFrame, type Point3D } from "@/lib/ml";
 
 export const Route = createFileRoute("/practice")({
   validateSearch: (search: Record<string, unknown>): { sign?: string } =>
@@ -111,25 +112,48 @@ function Practice() {
   }, [signParam]);
 
 
+  useEffect(() => {
+    if (cameraOn && videoRef.current && streamRef.current) {
+      if (videoRef.current.srcObject !== streamRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+      }
+      void videoRef.current.play().catch(() => {});
+    }
+  }, [cameraOn]);
+
   async function startCamera() {
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
-        audio: false,
-      });
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Camera API not supported in this browser.");
+      }
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { ideal: "user" } },
+          audio: false,
+        });
+      } catch {
+        // Fallback for macOS built-in cameras & external webcams that don't support facingMode
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
+
+      // Stop previous stream tracks if any
+      streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
       setCameraOn(true);
-      // the <video> element mounts once cameraOn is true
-      requestAnimationFrame(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          void videoRef.current.play();
-        }
-      });
     } catch {
       setError(
-        "We couldn't access your camera. Allow camera permission in your browser and try again.",
+        "We couldn't access your camera. Make sure permissions are granted and no other application is using it.",
       );
     }
   }
@@ -164,6 +188,7 @@ function Practice() {
     let faceMotion = 0;
     const energies: number[] = [];
     const landmarkFrames: Landmark[][] = [];
+    const normalizedFrames: Float32Array[] = [];
     const durationMs = 3000;
     const start = performance.now();
 
@@ -172,8 +197,14 @@ function Practice() {
         const elapsed = performance.now() - start;
         setCountdown(Math.max(0, Math.ceil((durationMs - elapsed) / 1000)));
         ctx.drawImage(video, 0, 0, W, H);
-        const hands = landmarker.detectForVideo(video, performance.now()).landmarks?.flat() as Landmark[] | undefined;
-        if (hands?.length) landmarkFrames.push(hands);
+        const handRes = landmarker.detectForVideo(video, performance.now());
+        const hands = handRes.landmarks?.flat() as Landmark[] | undefined;
+        if (hands?.length) {
+          landmarkFrames.push(hands);
+          const left = (handRes.landmarks?.[0] as Point3D[]) ?? null;
+          const right = (handRes.landmarks?.[1] as Point3D[]) ?? null;
+          normalizedFrames.push(normalizeFrame({ leftHand: left, rightHand: right }));
+        }
         const frame = ctx.getImageData(0, 0, W, H).data;
         if (prev) {
           const previous: Uint8ClampedArray = prev;
@@ -218,9 +249,15 @@ function Practice() {
           )
         : 0;
 
-    const modelMatch = await classifyIslSegment(landmarkFrames);
+    const signLanguage: "ISL" | "ASL" =
+      activeLesson?.language?.toUpperCase() === "ASL" ||
+      activeSign?.slug?.toLowerCase().startsWith("asl-")
+        ? "ASL"
+        : "ISL";
+
+    const modelMatch = await classifySignAttempt(signLanguage, normalizedFrames, landmarkFrames);
     if (!modelMatch) {
-      setError("The ISL model could not confidently recognise this attempt. Keep both hands in frame and try again.");
+      setError(`The ${signLanguage} model could not confidently recognise this attempt. Keep hands in frame and try again.`);
       return;
     }
 
@@ -304,18 +341,17 @@ function Practice() {
                 </button>
               </div>
 
-              <div className="practice-camera ink mt-4 aspect-video w-full overflow-hidden rounded-xl bg-muted">
-                {cameraOn ? (
-                  <video
-                    ref={videoRef}
-                    playsInline
-                    muted
-                    autoPlay
-                    className="h-full w-full object-cover"
-                    style={mirror ? { transform: "scaleX(-1)" } : undefined}
-                  />
-                ) : (
-                  <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
+              <div className="practice-camera ink mt-4 aspect-video w-full overflow-hidden rounded-xl bg-muted relative">
+                <video
+                  ref={videoRef}
+                  playsInline
+                  muted
+                  autoPlay
+                  className={`h-full w-full object-cover ${cameraOn ? "block" : "hidden"}`}
+                  style={mirror ? { transform: "scaleX(-1)" } : undefined}
+                />
+                {!cameraOn ? (
+                  <div className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
                     <p className="text-sm text-muted-foreground">
                       Your camera preview will appear here.
                     </p>
@@ -326,7 +362,7 @@ function Practice() {
                       Turn on camera
                     </button>
                   </div>
-                )}
+                ) : null}
               </div>
               <canvas ref={canvasRef} className="hidden" />
 
