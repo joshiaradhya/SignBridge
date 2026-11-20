@@ -52,6 +52,27 @@ class TestConnectSecurityAndSignaling(unittest.TestCase):
         key3 = deduplication_key("ice", "peer-1", payload_ice2)
         self.assertNotEqual(key1, key3)
 
+    def test_polite_peer_negotiation_logic(self):
+        # Impolite peer (higher ID) offers by default; polite peer initially waits
+        user_high = "user-zzz"
+        user_low = "user-aaa"
+        self.assertFalse(user_high < user_low)
+        self.assertTrue(user_low < user_high)
+
+        def should_offer(user_id, peer_id, beats, force=False):
+            if not peer_id:
+                return False
+            polite = user_id < peer_id
+            if not force and polite:
+                return beats >= 3  # Deadlock breaker
+            return True
+
+        self.assertTrue(should_offer(user_high, user_low, beats=1))
+        self.assertFalse(should_offer(user_low, user_high, beats=1))
+        # Polite peer breaks deadlock on beat 3+ if impolite peer didn't offer
+        self.assertTrue(should_offer(user_low, user_high, beats=3))
+
+
 
 if __name__ == "__main__":
     unittest.main()

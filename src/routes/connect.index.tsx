@@ -184,12 +184,15 @@ function ConnectLanding() {
             </p>
             <button
               className="ink ink-press label-caps mt-6 rounded-xl bg-card px-5 py-3 text-sm"
-              onClick={() =>
+              onClick={() => {
+                const currentId = queueId;
+                setQueueId(null);
+                if (timer.current) clearInterval(timer.current);
                 run(
-                  () => cancelQueue({ data: { queueId } }),
-                  () => setQueueId(null),
-                )
-              }
+                  () => cancelQueue({ data: { queueId: currentId } }),
+                  () => {},
+                );
+              }}
             >
               Cancel
             </button>

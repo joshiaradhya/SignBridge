@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Json } from "@/integrations/supabase/types";
+import { phraseLabel as phraseLabelHelper } from "./signconnect-phrasing";
 
 const PROMPTS = [
   "Introduce yourself",
@@ -98,6 +99,10 @@ export async function pollQueue(userId: string, queueId: string) {
     .eq("id", queueId)
     .eq("user_id", userId)
     .maybeSingle();
+  // If matched but room_id has not yet been populated by partner, remain waiting
+  if (data?.status === "matched" && !data.room_id) {
+    return { status: "waiting" as const, roomId: null };
+  }
   return { status: data?.status ?? "cancelled", roomId: data?.room_id ?? null };
 }
 
@@ -214,7 +219,6 @@ export async function sendCallSignal(
 }
 
 export async function getCallSignals(userId: string, roomId: string, afterId: number) {
-  await roomState(userId, roomId);
   const { data, error } = await supabaseAdmin
     .from("call_signals")
     .select("id, sender_id, signal_type, payload")
@@ -258,21 +262,6 @@ export async function reportPeer(
   return { ok: true };
 }
 
-const FALLBACK: Record<string, string> = {
-  HELLO: "Hello there!",
-  "THANK YOU": "Thank you so much.",
-  PLEASE: "Please.",
-  YES: "Yes.",
-  NO: "No.",
-  YOU: "You.",
-  ME: "Me.",
-  GOOD: "That's good!",
-  SORRY: "I'm sorry.",
-  HELP: "Can you help me?",
-  "NICE TO MEET YOU": "It's nice to meet you.",
-};
-
 export async function phraseLabel(label: string) {
-  const fallback = FALLBACK[label] ?? `${label.charAt(0)}${label.slice(1).toLowerCase()}.`;
-  return { text: fallback };
+  return { text: phraseLabelHelper(label) };
 }
