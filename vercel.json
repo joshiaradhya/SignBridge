@@ -4,10 +4,6 @@
     "app": {
       "root": ".",
       "framework": "tanstack-start"
-    },
-    "ml": {
-      "root": "ml/api",
-      "entrypoint": "index.py"
     }
   },
   "rewrites": [

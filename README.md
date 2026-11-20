@@ -98,7 +98,31 @@ SignBridge uses Supabase for authentication and data storage. To connect it to y
 1. Create a project at [supabase.com](https://supabase.com/).
 2. Copy `.env.example` to `.env` and set the Supabase values from **Project Settings → API**. Configure the same server-only values in your deployment environment. Never expose `SUPABASE_SERVICE_ROLE_KEY` to the browser.
 3. Apply the SQL migrations in `supabase/migrations` to your project (via the Supabase CLI or dashboard SQL editor) to create the required tables, policies, and seed/fix data.
-4. In **Supabase Dashboard → Authentication → URL Configuration**, add your local and production URLs as redirect URLs. Enable each social provider you intend to show on the sign-in screen (Google, Apple, or Azure/Microsoft) and add its credentials there.
+4. In **Supabase Dashboard → Authentication → URL Configuration**, set the Site URL to your production domain and add `http://localhost:3000/**`, `http://localhost:5173/**`, and `https://<your-vercel-domain>/**` to Redirect URLs. Add any custom domain too.
+5. In **Supabase Dashboard → Authentication → Providers**, enable only the social providers you use: Google, Apple, and Azure (Microsoft). Enter each provider's client ID and secret in Supabase; do not put them in this repository or Vercel's `VITE_` variables. The sign-in screen calls these Supabase providers directly.
+
+### Vercel deployment
+
+The app service uses TanStack Start and Nitro. The offline `ml/` training tools are intentionally **not** a Vercel service: deploying MediaPipe/OpenCV training dependencies as a Python Function exceeds Vercel's function limit and does not provide live inference.
+
+In Vercel's Environment Variables settings, add the following values for Production, Preview, and Development as appropriate:
+
+| Variable | Visibility | Value |
+| --- | --- | --- |
+| `VITE_SUPABASE_URL` | browser | Supabase project URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | browser | Supabase publishable/anon key |
+| `SUPABASE_URL` | server only | Supabase project URL |
+| `SUPABASE_PUBLISHABLE_KEY` | server only | Supabase publishable/anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | server only | Supabase service-role key, required for SignConnect server functions |
+
+Never prefix the service-role key with `VITE_`. In the Vercel project settings, keep the framework set to **Services** so the `app` service in `vercel.json` receives the public route.
+
+### Training in Google Colab
+
+Use the reproducible Colab setup in [`ml/COLAB.md`](ml/COLAB.md). It fixes the
+`No module named 'ml.signbridge.datasets'` error by importing the package from
+the cloned repository. The manifest builder rejects signer leakage instead of
+silently creating an invalid evaluation split.
 
 ## Running Locally
 
