@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { LogIn, LogOut } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 
 type Flash = { kind: "in" | "out"; id: number } | null;
 
@@ -9,6 +9,7 @@ export function AuthFlash() {
   const first = useRef(true);
 
   useEffect(() => {
+    if (!isSupabaseConfigured()) return;
     const show = (kind: "in" | "out") => setFlash({ kind, id: Date.now() });
 
     const onManual = (e: Event) => {
@@ -17,18 +18,23 @@ export function AuthFlash() {
     };
     window.addEventListener("sb-auth-flash", onManual);
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (first.current) {
-        first.current = false;
-        if (event === "INITIAL_SESSION") return;
-      }
-      if (event === "SIGNED_IN") show("in");
-      if (event === "SIGNED_OUT") show("out");
-    });
+    let sub: ReturnType<typeof supabase.auth.onAuthStateChange>["data"] | undefined;
+    try {
+      sub = supabase.auth.onAuthStateChange((event) => {
+        if (first.current) {
+          first.current = false;
+          if (event === "INITIAL_SESSION") return;
+        }
+        if (event === "SIGNED_IN") show("in");
+        if (event === "SIGNED_OUT") show("out");
+      }).data;
+    } catch (error) {
+      console.error("[Supabase] Could not initialise authentication notifications", error);
+    }
 
     return () => {
       window.removeEventListener("sb-auth-flash", onManual);
-      sub.subscription.unsubscribe();
+      sub?.subscription.unsubscribe();
     };
   }, []);
 

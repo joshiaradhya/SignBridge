@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -48,6 +48,10 @@ function AuthPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!isSupabaseConfigured()) {
+      setMessage("Sign-in is not configured for this deployment yet. Add the VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY variables in Vercel.");
+      return;
+    }
     setBusy(true);
     setMessage(null);
     if (mode === "signup") {
@@ -71,6 +75,10 @@ function AuthPage() {
   }
 
   async function oauth(provider: "google" | "apple" | "azure", label: string) {
+    if (!isSupabaseConfigured()) {
+      setMessage("Sign-in is not configured for this deployment yet. Add the public Supabase variables in Vercel.");
+      return;
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo: `${window.location.origin}${redirectTo ?? "/dashboard"}` },
