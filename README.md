@@ -1,146 +1,466 @@
 # SignBridge
 
-SignBridge (also called **Sign & See**) is a sign language learning and communication platform. It helps people learn ASL and ISL, practice signs with real-time feedback, and communicate live with sign-to-caption translation on video calls — all running client-side in the browser, with no video ever leaving the device for recognition.
+**Learn sign language. Practise it on camera. Connect through signing.**
 
-https://signbridge.app
+SignBridge is an AI-powered sign language learning and communication platform designed to make communication more accessible for people who use sign language and those who want to learn it.
 
-## Table of Contents
+The platform supports **Indian Sign Language (ISL)** and **American Sign Language (ASL)** through interactive learning modules, camera-based sign recognition, personalised practice, and real-time video communication.
 
-- [Overview](#overview)
-- [Features](#features)
-- [How Sign Recognition Works](#how-sign-recognition-works)
-- [Tech Stack](#tech-stack)
-- [Getting Started](#getting-started)
-- [Environment Setup](#environment-setup)
-- [Running Locally](#running-locally)
-- [Available Scripts](#available-scripts)
-- [Project Structure](#project-structure)
-- [Database](#database)
-- [Known Limitations](#known-limitations)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [License](#license)
+🌐 **Live Website:** https://signbridge.app  
+💻 **GitHub:** https://github.com/joshiaradhya/SignBridge
 
-## Overview
+---
 
-SignBridge combines three learning/communication surfaces into one app:
+## ✨ Features
 
-1. **Learn** what signs look like through structured, image-based lessons.
-2. **Practice** signs in front of your webcam and get scored feedback.
-3. **Connect** with someone in real time on a video call, with your signs translated into live captions for the other person.
+### 1. Learn — Interactive Sign Language Learning
 
-Progress across all of this is tracked through a dashboard with streaks, daily goals, and achievements, and you can add friends to see their progress too.
+A structured learning environment for beginners and advanced learners.
 
-## Features
+- ASL and ISL learning resources.
+- Lessons organised by difficulty:
+  - Basic
+  - Intermediate
+  - Advanced
+  - Conversations
+- Visual sign references and step-by-step instructions.
+- Guidance on handshape, movement, location, and facial expressions.
+- Lesson completion and learning progress tracking.
 
-### SignConnect
-A live video call room (`connect.$roomId.tsx`) that captures your hand movements through the webcam, segments them into discrete signs, and turns them into real-time captions for the other participant. Recognition runs entirely on-device using MediaPipe — no video is streamed anywhere for the purpose of sign detection.
+### 2. SignLab — AI-Powered Sign Language Practice
 
-### SignLab (Practice)
-The Practice route lets you attempt a sign on camera and immediately get an accuracy score. Feedback is broken down into four criteria — **handshape**, **location**, **movement**, and **expression** — each with its own score, a note on what was detected, and a tip for improving it.
+An interactive practice environment that uses the device camera and machine learning to help users practise signs.
 
-### Learn
-Structured lessons and courses covering ASL and ISL, including full A–Z and 0–9 fingerspelling. Lessons are deliberately image- and text-based (documentation-style) rather than video-based, so they're lightweight and easy to maintain.
+**Key capabilities:**
+- Real-time camera access.
+- MediaPipe hand landmark detection.
+- Sign recognition using trained machine learning models.
+- ONNX Runtime Web for browser-based inference.
+- Practice attempts and recognition feedback.
+- Guidance on handshape, location, movement, and expression.
+- Personalised practice suggestions.
 
-### Dashboard
-Tracks daily streaks, daily goals, recent activity, and unlocked achievements, giving an at-a-glance view of your learning progress.
+Sign recognition is designed to run directly in the browser, reducing the need to send raw camera footage to a remote recognition server.
 
-### Friends
-Add friends and see their activity and progress alongside your own for a bit of social accountability.
+### 3. SignConnect — Real-Time Communication
 
-## How Sign Recognition Works
+A communication feature designed to connect sign language learners through video calls.
 
-SignBridge currently uses two independent, lightweight recognition approaches rather than a single trained ML model — this is an active area of development (see [Roadmap](#roadmap)):
+**Features include:**
+- Peer-to-peer video calling using WebRTC.
+- Room creation and joining.
+- Conversation partner matchmaking.
+- Language and proficiency preferences.
+- Camera and microphone controls.
+- Live sign recognition and caption generation.
+- Real-time communication between learners.
 
-- **`src/lib/sign-recognizer.ts`** (used by SignConnect): Uses MediaPipe's `HandLandmarker` to track hand landmarks locally in the browser, then matches a segment of landmarks between movement pauses against a small, hardcoded vocabulary (currently: `HELLO`, `THANK YOU`, `PLEASE`, `YES`, `NO`, `YOU`, `GOOD`, `SORRY`, `HELP`) using hand-written geometric rules. It also produces an instant local caption before a more polished phrasing is available.
-- **`src/lib/attempt-analysis.ts`** (used by Practice/SignLab): Scores an attempt by analyzing frame-to-frame pixel motion — energy, fine-detail change, motion centroid, and jitter — rather than the actual geometry of the hand shape. This means it currently measures general motion quality rather than whether the *specific* sign was performed correctly, and it applies the same thresholds regardless of which sign is being attempted.
+Sign recognition runs locally in the browser, while video and audio are transmitted through the WebRTC connection.
 
-Both of these are known, intentional limitations of the current implementation and are the primary target for the ML work described in the roadmap.
+### 4. Dashboard and Gamification
 
-## Tech Stack
+A personalised dashboard that helps learners monitor their progress.
 
-- **Frontend:** React 19, TanStack Router, TanStack Query, TanStack Start, Vite
-- **Language:** TypeScript
-- **Styling/UI:** Tailwind CSS, Radix UI, shadcn-style components
-- **Computer Vision:** MediaPipe Tasks Vision (`HandLandmarker`), running fully client-side
-- **Backend:** Supabase (Postgres, Auth, Row-Level Security, SQL migrations)
-- **Package management:** npm or Bun (a `bun.lock` is committed)
-- **Tooling:** ESLint, Prettier
+- Daily learning goals.
+- Learning streaks.
+- XP and achievements.
+- Course completion tracking.
+- Practice statistics.
+- Personal profiles.
+- Friend connections and progress tracking.
 
-## Getting Started
+---
+
+## 🧠 Machine Learning Architecture
+
+SignBridge uses computer vision and machine learning to recognise sign-language movements.
+
+The recognition pipeline is designed around MediaPipe landmark extraction and browser-based ONNX inference.
+
+### Recognition Pipeline
+
+1. **Video Capture:** Accesses the user's camera through the browser.
+2. **Landmark Detection:** MediaPipe Tasks Vision extracts relevant body landmarks.
+3. **Feature Extraction:** Extracted landmarks are normalised into a standard feature representation.
+4. **Temporal Processing:** Sign sequences are resampled into a fixed-length sequence.
+5. **Classification:** A trained ONNX model predicts the corresponding sign.
+6. **Feedback:** Predictions are used to provide practice feedback or generate captions.
+
+### Landmark Feature Schema
+
+The current TypeScript feature schema uses version `2.0.0`.
+
+| Component | Landmarks |
+|---|---:|
+| Left Hand | 21 |
+| Right Hand | 21 |
+| Upper Body Pose | 12 |
+| Face | 20 |
+| **Total** | **74** |
+
+Each landmark contains three coordinates (X, Y, Z).
+
+- 74 landmarks per frame.
+- 222 features per frame.
+- 32 temporal frames.
+- 7,104 values per complete sequence.
+
+The resulting model input has the shape:
+
+`[batch, 32, 222]`
+
+### Model Inference
+
+The application uses:
+
+- MediaPipe Tasks Vision for landmark detection.
+- ONNX Runtime Web for browser-based machine learning inference.
+- WebAssembly execution for model inference.
+- A legacy centroid-based classifier as an ISL fallback when its model asset is available.
+
+The classifier supports language-specific model metadata and configurable confidence thresholds.
+
+---
+
+## 🏗️ System Architecture
+
+```text
+                 SIGNBRIDGE
+                     |
+          React + TypeScript Frontend
+                     |
+              TanStack Start
+                     |
+       +-------------+-------------+
+       |             |             |
+      LEARN        SIGNLAB      SIGNCONNECT
+       |             |             |
+   Supabase      MediaPipe       WebRTC
+   Courses       Landmarks       Video Calls
+   Lessons           |             |
+   Progress      Feature        Supabase
+                 Extraction     Realtime
+                    |              |
+                ONNX Model    Sign Captions
+                    |
+              Recognition
+                    |
+                Feedback
+
+                     |
+              SUPABASE BACKEND
+                     |
+          +----------+----------+
+          |          |          |
+        Auth       Database   Storage
+          |
+       Profiles
+       Progress
+       Achievements
+       Practice Attempts
+```
+
+---
+
+## 🛠️ Technology Stack
+
+| Category | Technologies |
+|---|---|
+| Frontend | React 19, TypeScript |
+| Framework | TanStack Start, TanStack Router |
+| Build Tool | Vite |
+| Backend | Supabase |
+| Authentication | Supabase Auth |
+| Database | PostgreSQL |
+| Realtime | Supabase Realtime |
+| Computer Vision | MediaPipe Tasks Vision |
+| Machine Learning | Python, TensorFlow / compatible training workflow |
+| Model Inference | ONNX Runtime Web |
+| Video Communication | WebRTC |
+| Styling | Tailwind CSS 4, Radix UI |
+| Data Fetching | TanStack Query |
+| Deployment | Vercel |
+| ML Development | Google Colab |
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js v18 or higher
-- npm, or [Bun](https://bun.sh/) (a `bun.lock` is included for faster installs)
-- A webcam and microphone for the live features (Chrome or Edge recommended for best MediaPipe/WebRTC support)
-- A [Supabase](https://supabase.com/) project for auth, activity tracking, and data storage
+- Node.js 18 or newer.
+- npm or Bun.
+- A Supabase project.
+- A modern browser.
+- Webcam and microphone for SignLab and SignConnect.
 
-### Installation
+### 1. Clone the Repository
 
-```sh
-# 1. Clone the repository
+```bash
 git clone https://github.com/joshiaradhya/SignBridge.git
 
-# 2. Navigate into the project directory
 cd SignBridge
+```
 
-# 3. Install dependencies
+### 2. Install Dependencies
+
+Using npm:
+
+```bash
 npm install
-# or, if using bun
+```
+
+Alternatively, using Bun:
+
+```bash
 bun install
 ```
 
-## Environment Setup
+### 3. Configure Environment Variables
 
-SignBridge uses Supabase for authentication and data storage. To connect it to your own project:
+Create a `.env` file:
 
-1. Create a project at [supabase.com](https://supabase.com/).
-2. Copy `.env.example` to `.env` and set the Supabase values from **Project Settings → API**. Configure the same server-only values in your deployment environment. Never expose `SUPABASE_SERVICE_ROLE_KEY` to the browser.
-3. Apply the SQL migrations in `supabase/migrations` to your project (via the Supabase CLI or dashboard SQL editor) to create the required tables, policies, and seed/fix data.
-4. In **Supabase Dashboard → Authentication → URL Configuration**, set the Site URL to your production domain and add `http://localhost:3000/**`, `http://localhost:5173/**`, and `https://<your-vercel-domain>/**` to Redirect URLs. Add any custom domain too.
-5. In **Supabase Dashboard → Authentication → Providers**, enable only the social providers you use: Google, Apple, and Azure (Microsoft). Enter each provider's client ID and secret in Supabase; do not put them in this repository or Vercel's `VITE_` variables. The sign-in screen calls these Supabase providers directly.
+```bash
+cp .env.example .env
+```
 
-### Vercel deployment
+Configure the required Supabase credentials.
 
-The app service uses TanStack Start and Nitro. The offline `ml/` training tools are intentionally **not** a Vercel service: deploying MediaPipe/OpenCV training dependencies as a Python Function exceeds Vercel's function limit and does not provide live inference.
+```env
+VITE_SUPABASE_URL=your_supabase_project_url
 
-In Vercel's Environment Variables settings, add the following values for Production, Preview, and Development as appropriate:
+VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 
-| Variable | Visibility | Value |
-| --- | --- | --- |
-| `VITE_SUPABASE_URL` | browser | Supabase project URL |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | browser | Supabase publishable/anon key |
-| `SUPABASE_URL` | server only | Supabase project URL |
-| `SUPABASE_PUBLISHABLE_KEY` | server only | Supabase publishable/anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | server only | Supabase service-role key, required for SignConnect server functions |
+SUPABASE_URL=your_supabase_project_url
 
-Never prefix the service-role key with `VITE_`. In the Vercel project settings, keep the framework set to **Services** so the `app` service in `vercel.json` receives the public route.
+SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 
-### Training in Google Colab
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-Use the reproducible Colab setup in [`ml/COLAB.md`](ml/COLAB.md). It fixes the
-`No module named 'ml.signbridge.datasets'` error by importing the package from
-the cloned repository. The manifest builder rejects signer leakage instead of
-silently creating an invalid evaluation split.
+DATABASE_URL=your_database_connection_string
+```
 
-## Running Locally
+Only configure variables required by the features and tooling you use.
 
-```sh
+**Important:** Never expose the Supabase service-role key in frontend code or commit real credentials to GitHub.
+
+### 4. Start the Development Server
+
+```bash
 npm run dev
 ```
 
-This starts the Vite dev server. Open the printed local URL in your browser and grant camera/microphone permissions to use SignConnect and Practice.
+Open the local URL provided by Vite.
 
-## Available Scripts
+---
 
-| Script | Description |
-|---|---|
-| `npm run dev` | Start the Vite development server |
-| `npm run build` | Production build |
-| `npm run build:dev` | Build in development mode |
-| `npm run preview` | Preview the production build locally |
-| `npm run lint` | Lint the codebase with ESLint |
-| `npm run format` | Format the codebase with Prettier |
+## 🔐 Supabase Configuration
 
-## Project Structure
+SignBridge uses Supabase for authentication, database operations, and realtime functionality.
+
+To configure Supabase:
+
+1. Create a project at https://supabase.com/.
+2. Obtain the project URL and publishable key.
+3. Configure the environment variables.
+4. Apply the SQL migrations located in `supabase/migrations/`.
+5. Enable the authentication providers you intend to support.
+6. Configure OAuth credentials and callback URLs.
+7. Configure your application Site URL and Redirect URLs in Supabase Authentication settings.
+
+Authentication providers can include:
+
+- Email and password.
+- Google.
+- Apple.
+- Microsoft (Azure).
+
+Provider availability depends on the corresponding OAuth configuration.
+
+---
+
+## ☁️ Deployment
+
+SignBridge is deployed using Vercel.
+
+### Deployment Steps
+
+1. Connect the GitHub repository to Vercel.
+2. Configure the required environment variables.
+3. Ensure the TanStack Start deployment configuration is used.
+4. Configure Supabase authentication redirect URLs.
+5. Deploy the application.
+
+**Production Website:** https://signbridge.app
+
+Machine learning model training is handled separately from the Vercel deployment process.
+
+Exported browser-compatible model assets must be included in the deployed application's public assets.
+
+---
+
+## 🤖 Machine Learning Development
+
+The `ml/` and `notebooks/` directories contain the machine learning workflow.
+
+The project is designed to support dataset preparation, landmark extraction, model training, evaluation, and ONNX export.
+
+### Google Colab Workflow
+
+Google Colab can be used for computationally intensive machine learning operations without relying on local hardware.
+
+Clone the repository inside Colab:
+
+```python
+!git clone https://github.com/joshiaradhya/SignBridge.git /content/SignBridge
+
+%cd /content/SignBridge
+
+!pip install -r ml/requirements.txt
+```
+
+Import the project package:
+
+```python
+import sys
+
+sys.path.insert(0, "/content/SignBridge")
+```
+
+The documented ML workflow includes:
+
+1. Dataset preparation.
+2. Signer-independent dataset splitting.
+3. YOLO-based detection experiments.
+4. MediaPipe landmark extraction.
+5. Temporal sequence preparation.
+6. Model training and evaluation.
+7. ONNX model export.
+8. Browser inference validation.
+
+For detailed instructions, refer to:
+
+- `ml/README.md`
+- `ml/COLAB.md`
+- `notebooks/`
+
+### Model Assets
+
+The browser classifier looks for language-specific model metadata:
+
+```text
+public/
+└── models/
+    ├── isl-metadata.json
+    ├── asl-metadata.json
+    └── isl-v1.json
+```
+
+The metadata references the ONNX model, labels, input/output names, and model configuration.
+
+Actual recognition coverage depends on the model assets deployed with the application.
+
+---
+
+## 📁 Project Structure
+
+```text
+SignBridge/
+│
+├── public/
+│   └── models/
+│
+├── src/
+│   ├── assets/
+│   │
+│   ├── components/
+│   │
+│   ├── hooks/
+│   │
+│   ├── integrations/
+│   │   └── supabase/
+│   │
+│   ├── lib/
+│   │   ├── ml/
+│   │   ├── learning.ts
+│   │   ├── signbridge.ts
+│   │   ├── sign-recognizer.ts
+│   │   ├── isl-model.ts
+│   │   └── signconnect.*
+│   │
+│   ├── routes/
+│   │
+│   └── styles.css
+│
+├── supabase/
+│   └── migrations/
+│
+├── ml/
+│
+├── notebooks/
+│
+├── .env.example
+├── package.json
+├── vite.config.ts
+└── vercel.json
+```
+
+---
+
+## 🔒 Privacy and Security
+
+SignBridge is designed with user privacy in mind.
+
+- Camera permissions are requested through the browser.
+- SignLab performs landmark extraction and recognition locally.
+- Raw SignLab practice footage is not uploaded as part of the recognition workflow.
+- SignConnect transmits call media to the other participant through WebRTC.
+- Supabase manages authentication and application data.
+- Protected server functions validate authenticated sessions.
+- Database access should be protected through Row Level Security (RLS).
+
+---
+
+## ⚠️ Current Limitations
+
+- Recognition accuracy depends on the quality and coverage of trained models.
+- Model inference requires compatible ONNX model assets.
+- The legacy centroid-based recognition fallback is currently ISL-specific.
+- Sign-language recognition is not equivalent to complete natural-language translation.
+- Signing variations, facial expressions, regional differences, and contextual meaning can affect recognition.
+- Browser performance depends on the user's hardware and browser capabilities.
+- SignConnect requires an internet connection and camera/microphone permissions.
+
+---
+
+## 🎯 Vision
+
+The long-term vision of SignBridge is to make sign-language learning and communication more accessible through practical AI-powered tools.
+
+By combining computer vision, machine learning, structured education, and real-time communication, SignBridge aims to help bridge communication gaps between sign-language users and the wider community.
+
+---
+
+## 🤝 Contributing
+
+Contributions and suggestions are welcome.
+
+1. Fork the repository.
+2. Create a new feature branch.
+3. Implement your changes.
+4. Test your changes.
+5. Submit a pull request.
+
+When modifying the ML pipeline, ensure that the Python training implementation and TypeScript browser feature schema remain compatible.
+
+---
+
+## 📄 License
+
+No repository license has been confirmed. All rights reserved unless a license is added to the repository.
+
+---
+
+**Built with the goal of making communication more accessible.**
+
+⭐ If you find SignBridge interesting, consider starring the repository!
