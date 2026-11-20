@@ -1,0 +1,3 @@
+# Intentionally empty. The ML service is a stdlib health stub.
+# Do not list mediapipe/opencv here — Vercel would bundle them into the
+# Python function and exceed the 500 MB unzipped limit.

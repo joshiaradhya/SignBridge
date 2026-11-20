@@ -1,0 +1,28 @@
+{
+  "version": "2.0.0",
+  "schemaVersion": "2.0.0",
+  "language": "ASL",
+  "modelType": "bilstm-attention",
+  "frames": 32,
+  "featuresPerFrame": 222,
+  "inputShape": [1, 32, 222],
+  "inputName": "input",
+  "outputName": "logits",
+  "numClasses": 40,
+  "labels": [
+    "AGAIN", "BOOK", "BROTHER", "DRINK", "EAT", "FAMILY", "FATHER", "FINE",
+    "GOODBYE", "HAPPY", "HELLO", "HELP", "HOME", "HOUSE", "HOW", "LEARN",
+    "MEETING", "MORE", "MORNING", "MOTHER", "NIGHT", "NO", "PLEASE", "SAD",
+    "SISTER", "SORRY", "STUDENT", "TEACHER", "THANK YOU", "TIME", "TODAY",
+    "TOMORROW", "WANT", "WATER", "WHAT", "WHERE", "WHO", "WHY", "WORK", "YES"
+  ],
+  "thresholds": {
+    "HELLO": 0.65,
+    "PLEASE": 0.65,
+    "THANK YOU": 0.65,
+    "SORRY": 0.65,
+    "HELP": 0.65
+  },
+  "onnxUrl": "/models/asl-bilstm-v1.onnx",
+  "status": "pending_colab_training"
+}

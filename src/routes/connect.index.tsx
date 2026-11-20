@@ -115,10 +115,19 @@ function ConnectLanding() {
   useEffect(() => {
     if (!queueId) return;
     timer.current = setInterval(async () => {
-      const res = await pollQueue({ data: { queueId } });
-      if (res.status === "matched" && res.roomId) {
-        setQueueId(null);
-        navigate({ to: "/connect/$roomId", params: { roomId: res.roomId } });
+      try {
+        const res = await pollQueue({ data: { queueId } });
+        if (res.status === "matched" && res.roomId) {
+          if (timer.current) clearInterval(timer.current);
+          setQueueId(null);
+          navigate({ to: "/connect/$roomId", params: { roomId: res.roomId } });
+        } else if (res.status === "cancelled") {
+          if (timer.current) clearInterval(timer.current);
+          setQueueId(null);
+          setError("Matchmaking was cancelled. Please try again.");
+        }
+      } catch {
+        /* keep polling on transient network hiccups */
       }
     }, 1000);
     return () => {

@@ -1,5 +1,7 @@
-"""Dataset preparation helpers for SignBridge model training."""
+"""SignBridge ML Library.
 
-from .datasets import DatasetManifest, prepare_include_manifest, verify_signer_isolation
+Production-grade, browser-oriented sign language recognition pipeline
+for Indian Sign Language (ISL) and American Sign Language (ASL).
+"""
 
-__all__ = ["DatasetManifest", "prepare_include_manifest", "verify_signer_isolation"]
+__version__ = "2.0.0"

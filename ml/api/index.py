@@ -22,6 +22,8 @@ class handler(BaseHTTPRequestHandler):
                 "service": "signbridge-ml",
                 "status": "ready",
                 "inference": "browser-local",
+                "schema_version": "2.0.0",
+                "languages": ["ISL", "ASL"],
                 "model": "pending-training",
             },
         )

@@ -48,22 +48,33 @@ export async function findPartner(
   );
 
   if (partner) {
-    const prompt = PROMPTS[Math.floor(Math.random() * PROMPTS.length)]!;
-    const { data: room, error } = await supabaseAdmin
-      .from("rooms")
-      .insert({ mode: "random", status: "active", conversation_prompt: prompt })
-      .select("id")
-      .single();
-    if (error || !room) throw new Error("Could not open a room");
-
-    await addParticipant(room.id, userId);
-    await addParticipant(room.id, partner.user_id);
-    await supabaseAdmin
+    // Atomically claim the partner to prevent race condition when two users match simultaneously
+    const { data: claimed } = await supabaseAdmin
       .from("match_queue")
-      .update({ status: "matched", room_id: room.id })
-      .in("id", [partner.id]);
+      .update({ status: "matched" })
+      .eq("id", partner.id)
+      .eq("status", "waiting")
+      .select("id")
+      .maybeSingle();
 
-    return { status: "matched" as const, roomId: room.id, queueId: null };
+    if (claimed) {
+      const prompt = PROMPTS[Math.floor(Math.random() * PROMPTS.length)]!;
+      const { data: room, error } = await supabaseAdmin
+        .from("rooms")
+        .insert({ mode: "random", status: "active", conversation_prompt: prompt })
+        .select("id")
+        .single();
+      if (error || !room) throw new Error("Could not open a room");
+
+      await addParticipant(room.id, userId);
+      await addParticipant(room.id, partner.user_id);
+      await supabaseAdmin
+        .from("match_queue")
+        .update({ room_id: room.id })
+        .eq("id", partner.id);
+
+      return { status: "matched" as const, roomId: room.id, queueId: null };
+    }
   }
 
   const { data: row, error } = await supabaseAdmin
@@ -166,6 +177,11 @@ export async function roomState(userId: string, roomId: string) {
 }
 
 export async function leaveRoom(userId: string, roomId: string) {
+  // Authorization: verify that user is part of this room before closing it
+  const state = await roomState(userId, roomId);
+  if (!state.participants.includes(userId)) {
+    throw new Error("You are not part of this call");
+  }
   await supabaseAdmin.from("rooms").update({ status: "ended" }).eq("id", roomId);
   await supabaseAdmin
     .from("match_queue")
@@ -215,6 +231,8 @@ export async function saveCaption(
   userId: string,
   input: { roomId: string; label: string; confidence: number; text: string },
 ) {
+  // Authorization: verify that user is a participant in this room
+  await roomState(userId, input.roomId);
   await supabaseAdmin.from("call_transcripts").insert({
     room_id: input.roomId,
     sender_id: userId,
@@ -229,6 +247,8 @@ export async function reportPeer(
   userId: string,
   input: { roomId: string; reason: string; reportedId?: string | undefined },
 ) {
+  // Authorization: verify reporter is part of this room
+  await roomState(userId, input.roomId);
   await supabaseAdmin.from("reports").insert({
     reporter_id: userId,
     reported_id: input.reportedId ?? null,
