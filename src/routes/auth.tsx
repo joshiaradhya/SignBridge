@@ -79,9 +79,13 @@ function AuthPage() {
       setMessage("Sign-in is not configured for this deployment yet. Add the public Supabase variables in Vercel.");
       return;
     }
+    const options = {
+      redirectTo: `${window.location.origin}${redirectTo ?? "/dashboard"}`,
+      ...(provider === "azure" ? { scopes: "email" } : {}),
+    };
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}${redirectTo ?? "/dashboard"}` },
+      options,
     });
     if (error) setMessage(`${label} sign-in failed. Enable and configure this provider in Supabase Auth first.`);
   }
