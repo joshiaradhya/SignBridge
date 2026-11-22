@@ -36,9 +36,11 @@ __pycache__/
 *.sln
 *.sw?
 
-# ML Datasets, Checkpoints, and Binary Models
+# ML video dumps, checkpoints, and binary models.
+# /datasets/ is only the repo-root dump folder. Do not ignore
+# ml/signbridge/datasets/, which is the Python package Colab imports.
 data/
-datasets/
+/datasets/
 checkpoints/
 runs/
 *.pt
