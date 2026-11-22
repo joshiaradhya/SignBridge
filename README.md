@@ -6,7 +6,7 @@ SignBridge is an AI-powered sign language learning and communication platform de
 
 The platform supports **Indian Sign Language (ISL)** and **American Sign Language (ASL)** through interactive learning modules, camera-based sign recognition, personalised practice, and real-time video communication.
 
-🌐 **Live Website:** https://signbridge.app  
+🌐 **Live Website:** https://signbridge-three-vert.vercel.app/ 
 💻 **GitHub:** https://github.com/joshiaradhya/SignBridge
 
 ---
