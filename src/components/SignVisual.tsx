@@ -1,18 +1,12 @@
 import { useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
-  CircleDotDashed,
-  Hand,
-  MoveRight,
-} from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Hand, MoveRight } from "lucide-react";
 import {
   getSignReference,
   orientationFromSign,
   type ReferenceView,
   viewLabel,
 } from "@/lib/sign-references";
+import { SignDiagram } from "@/components/SignDiagram";
 
 type Sign = {
   gloss: string;
@@ -113,27 +107,17 @@ export function SignVisual({ sign, className }: { sign: Sign; className?: string
           ) : null}
         </div>
       ) : (
-        <div className="grid min-h-56 place-items-center bg-[radial-gradient(circle_at_center,rgba(255,221,87,0.22),transparent_48%)] p-5 text-center">
-          <div className="max-w-sm">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border-2 border-dashed border-foreground/40 bg-card">
-              <CircleDotDashed className="h-6 w-6" aria-hidden="true" />
-            </div>
-            <p className="mt-3 label-caps text-xs">Verified image required</p>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              {reference.status === "review-required"
-                ? reference.reviewNote
-                : "No approved reference is available."}
-            </p>
-            {reference.status === "review-required" && reference.source ? (
-              <a
-                href={reference.source.href}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 inline-block rounded-md bg-primary px-3 py-2 text-[10px] font-bold text-primary-foreground"
-              >
-                {reference.source.label}
-              </a>
-            ) : null}
+        <div className="relative aspect-[4/3] bg-secondary/30">
+          <SignDiagram
+            gloss={sign.gloss}
+            handshape={sign.handshape}
+            location={sign.location}
+            movement={sign.movement}
+            imageKey={sign.image_key}
+            className="h-full w-full"
+          />
+          <div className="absolute bottom-3 left-3 rounded-md bg-background/95 px-2 py-1 text-[10px] font-bold">
+            Instructional diagram
           </div>
         </div>
       )}
@@ -143,7 +127,7 @@ export function SignVisual({ sign, className }: { sign: Sign; className?: string
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {activeAsset
             ? "Compare finger position with the written cue below."
-            : "Do not infer a handshape from a placeholder image."}
+            : "Study the diagram alongside the precise handshape, placement, and movement cues below."}
         </div>
         <div className="mt-3 grid grid-cols-[auto_1fr_auto] items-center gap-2">
           <button
