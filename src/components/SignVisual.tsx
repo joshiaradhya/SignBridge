@@ -101,6 +101,16 @@ export function SignVisual({ sign, className }: { sign: Sign; className?: string
           <div className="absolute bottom-3 left-3 rounded-md bg-background/95 px-2 py-1 text-[10px] font-bold">
             Verified reference
           </div>
+          {activeAsset.attribution ? (
+            <a
+              href={activeAsset.attribution.href}
+              target="_blank"
+              rel="noreferrer"
+              className="absolute bottom-3 right-3 max-w-[58%] rounded-md bg-background/95 px-2 py-1 text-right text-[9px] leading-tight underline"
+            >
+              {activeAsset.attribution.label}
+            </a>
+          ) : null}
         </div>
       ) : (
         <div className="grid min-h-56 place-items-center bg-[radial-gradient(circle_at_center,rgba(255,221,87,0.22),transparent_48%)] p-5 text-center">
@@ -114,6 +124,16 @@ export function SignVisual({ sign, className }: { sign: Sign; className?: string
                 ? reference.reviewNote
                 : "No approved reference is available."}
             </p>
+            {reference.status === "review-required" && reference.source ? (
+              <a
+                href={reference.source.href}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-block rounded-md bg-primary px-3 py-2 text-[10px] font-bold text-primary-foreground"
+              >
+                {reference.source.label}
+              </a>
+            ) : null}
           </div>
         </div>
       )}
