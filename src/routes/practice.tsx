@@ -61,8 +61,6 @@ function Practice() {
   const [progressNote, setProgressNote] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-
-
   const courses = useQuery(coursesQuery);
   const allSigns = signs.data ?? [];
   const allLessons = lessons.data ?? [];
@@ -110,7 +108,6 @@ function Practice() {
     setBrowseAll(false);
     setResult(null);
   }, [signParam]);
-
 
   useEffect(() => {
     if (cameraOn && videoRef.current && streamRef.current) {
@@ -244,9 +241,7 @@ function Practice() {
     const mean = energy;
     const jitter =
       energies.length > 1
-        ? Math.sqrt(
-            energies.reduce((s, e) => s + (e - mean) ** 2, 0) / energies.length,
-          )
+        ? Math.sqrt(energies.reduce((s, e) => s + (e - mean) ** 2, 0) / energies.length)
         : 0;
 
     const signLanguage: "ISL" | "ASL" =
@@ -256,24 +251,29 @@ function Practice() {
         : "ISL";
 
     if (landmarkFrames.length === 0) {
-      setError("No hand landmarks were detected. Make sure your hands are clearly visible in the camera frame and try again.");
+      setError(
+        "No hand landmarks were detected. Make sure your hands are clearly visible in the camera frame and try again.",
+      );
       return;
     }
 
     const modelMatch = await classifySignAttempt(signLanguage, normalizedFrames, landmarkFrames);
 
-    const analysis = adaptPracticeFeedback(analyseAttempt(
-      {
-        energy,
-        detail: sampledPixels > 0 ? activePixels / sampledPixels : 0,
-        centroidX: weightSum > 0 ? weightX / weightSum : 0.5,
-        centroidY: weightSum > 0 ? weightY / weightSum : 0.5,
-        faceBand: activePixels > 0 ? faceMotion / activePixels : 0,
-        jitter,
-      },
-      activeSign,
-      modelMatch ? { ...modelMatch, targetLabel: activeSign?.gloss ?? "" } : undefined,
-    ), user?.id);
+    const analysis = adaptPracticeFeedback(
+      analyseAttempt(
+        {
+          energy,
+          detail: sampledPixels > 0 ? activePixels / sampledPixels : 0,
+          centroidX: weightSum > 0 ? weightX / weightSum : 0.5,
+          centroidY: weightSum > 0 ? weightY / weightSum : 0.5,
+          faceBand: activePixels > 0 ? faceMotion / activePixels : 0,
+          jitter,
+        },
+        activeSign,
+        modelMatch ? { ...modelMatch, targetLabel: activeSign?.gloss ?? "" } : undefined,
+      ),
+      user?.id,
+    );
     setResult(analysis);
 
     if (user && activeSign) {
@@ -298,9 +298,7 @@ function Practice() {
       await queryClient.invalidateQueries({ queryKey: ["profile"] });
       await queryClient.invalidateQueries({ queryKey: ["attempt-stats"] });
     }
-
   }
-
 
   return (
     <div className="min-h-screen">
@@ -310,7 +308,9 @@ function Practice() {
           <header className="practice-banner ink-lg overflow-hidden rounded-2xl px-5 py-6 sm:px-8 sm:py-8">
             <div className="relative z-10 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
               <div>
-                <p className="label-caps text-[11px] text-muted-foreground">Camera practice studio</p>
+                <p className="label-caps text-[11px] text-muted-foreground">
+                  Camera practice studio
+                </p>
                 <h1 className="mt-1 text-4xl sm:text-5xl">SIGNLAB</h1>
                 <p className="mt-3 max-w-2xl text-sm leading-relaxed">
                   Pick a sign, study the movement, then practise it beside the reference. Your
@@ -407,7 +407,6 @@ function Practice() {
                     </p>
                   ) : null}
 
-
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     {result.criteria.map((c) => (
                       <div key={c.key} className="ink rounded-xl bg-card p-3">
@@ -423,11 +422,15 @@ function Practice() {
                         </div>
                         <div className="ink mt-2 h-2 w-full overflow-hidden rounded-full bg-background">
                           <div
-                            className={c.matched ? "h-full bg-accent" : "h-full bg-muted-foreground"}
+                            className={
+                              c.matched ? "h-full bg-accent" : "h-full bg-muted-foreground"
+                            }
                             style={{ width: `${c.score}%` }}
                           />
                         </div>
-                        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{c.note}</p>
+                        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                          {c.note}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -454,7 +457,6 @@ function Practice() {
                   ) : null}
                 </div>
               ) : null}
-
             </section>
 
             <section className="practice-panel practice-reference ink-lg rounded-2xl bg-card p-4 sm:p-6 lg:sticky lg:top-4">
@@ -481,13 +483,21 @@ function Practice() {
                   </div>
                   <p className="mt-3 text-sm leading-relaxed">{activeSign.movement}</p>
                   {activeLesson ? (
-                    <Link
-                      to="/learn/$lessonSlug"
-                      params={{ lessonSlug: activeLesson.slug }}
-                      className="label-caps mt-3 inline-block text-xs underline"
-                    >
-                      Read full documentation
-                    </Link>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Link
+                        to="/learn/$lessonSlug"
+                        params={{ lessonSlug: activeLesson.slug }}
+                        className="ink ink-press label-caps inline-flex items-center rounded-lg bg-accent px-3 py-2 text-[10px]"
+                      >
+                        Study this lesson
+                      </Link>
+                      <Link
+                        to="/learn"
+                        className="label-caps inline-flex items-center px-2 py-2 text-[10px] underline"
+                      >
+                        All lessons
+                      </Link>
+                    </div>
                   ) : null}
                 </div>
               ) : null}
@@ -534,7 +544,7 @@ function Practice() {
                     />
                   </div>
 
-                   <div className="practice-library mt-4 max-h-[420px] space-y-4 overflow-y-auto pr-2">
+                  <div className="practice-library mt-4 max-h-[420px] space-y-4 overflow-y-auto pr-2">
                     {groups.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
                         No signs match these filters yet — try another category.
@@ -573,15 +583,14 @@ function Practice() {
                                 </span>
                               </button>
                             );
-                           })}
-                         </div>
+                          })}
+                        </div>
                       </div>
                     ))}
                   </div>
                 </>
               ) : null}
             </section>
-
           </div>
         </div>
       </main>
@@ -589,15 +598,7 @@ function Practice() {
   );
 }
 
-function Chip({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
+function Chip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
     <button
       onClick={onClick}
