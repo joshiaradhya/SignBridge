@@ -1,12 +1,18 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, ChevronLeft, ChevronRight, Hand, MoveRight } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Hand,
+  MoveRight,
+} from "lucide-react";
 import {
   getSignReference,
   orientationFromSign,
   type ReferenceView,
   viewLabel,
 } from "@/lib/sign-references";
-import { SignDiagram } from "@/components/SignDiagram";
 
 type Sign = {
   gloss: string;
@@ -32,7 +38,7 @@ const fallbackSteps = (sign: Sign) => [
 export function SignVisual({ sign, className }: { sign: Sign; className?: string }) {
   const reference = getSignReference(sign.image_key);
   const availableViews = useMemo<ReferenceView[]>(() => {
-    if (reference.status !== "verified") return ["primary", "movement"];
+    if (reference.status !== "verified") return ["primary"];
     const views = (Object.keys(reference.views) as ReferenceView[]).filter(
       (candidate) => reference.views[candidate],
     );
@@ -55,9 +61,14 @@ export function SignVisual({ sign, className }: { sign: Sign; className?: string
           <Hand className="h-4 w-4 text-primary" aria-hidden="true" />
           <span className="label-caps text-[10px]">Demonstration reference</span>
         </div>
-        <span className="rounded-full bg-secondary px-2 py-1 text-[10px] font-semibold">
-          {orientation}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="rounded-full bg-primary px-2 py-1 text-[10px] font-bold text-primary-foreground">
+            {reference.language}
+          </span>
+          <span className="rounded-full bg-secondary px-2 py-1 text-[10px] font-semibold">
+            {orientation}
+          </span>
+        </div>
       </div>
 
       <div
@@ -107,18 +118,22 @@ export function SignVisual({ sign, className }: { sign: Sign; className?: string
           ) : null}
         </div>
       ) : (
-        <div className="relative aspect-[4/3] bg-secondary/30">
-          <SignDiagram
-            gloss={sign.gloss}
-            handshape={sign.handshape}
-            location={sign.location}
-            movement={sign.movement}
-            imageKey={sign.image_key}
-            className="h-full w-full"
-          />
-          <div className="absolute bottom-3 left-3 rounded-md bg-background/95 px-2 py-1 text-[10px] font-bold">
-            Instructional diagram
-          </div>
+        <div className="flex aspect-[4/3] flex-col items-center justify-center bg-secondary/30 p-6 text-center">
+          <AlertTriangle className="h-8 w-8 text-primary" aria-hidden="true" />
+          <p className="label-caps mt-3 text-xs">Visual review required</p>
+          <p className="mt-2 max-w-sm text-xs leading-relaxed text-muted-foreground">
+            {reference.reviewNote}
+          </p>
+          {reference.source ? (
+            <a
+              href={reference.source.href}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-flex items-center gap-1 text-xs font-semibold underline"
+            >
+              {reference.source.label} <ExternalLink className="h-3 w-3" />
+            </a>
+          ) : null}
         </div>
       )}
 
@@ -127,7 +142,7 @@ export function SignVisual({ sign, className }: { sign: Sign; className?: string
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {activeAsset
             ? "Compare finger position with the written cue below."
-            : "Study the diagram alongside the precise handshape, placement, and movement cues below."}
+            : "This written cue is not a substitute for an approved visual reference."}
         </div>
         <div className="mt-3 grid grid-cols-[auto_1fr_auto] items-center gap-2">
           <button
@@ -166,6 +181,12 @@ export function SignVisual({ sign, className }: { sign: Sign; className?: string
             <b>Move:</b> {sign.movement}
           </p>
         </div>
+        {reference.status === "verified" ? (
+          <div className="mt-2 rounded-md bg-secondary/60 px-2 py-1.5 text-[10px] leading-relaxed">
+            <b>Finger position:</b> {reference.gesture.fingers} <b className="ml-1">Thumb:</b>{" "}
+            {reference.gesture.thumb}
+          </div>
+        ) : null}
         <p className="mt-2 flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
           <MoveRight className="h-3 w-3" /> Movement cues are shown as numbered written frames until
           approved media is linked.
