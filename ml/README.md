@@ -10,6 +10,7 @@ Inference runs locally in the user's browser using **ONNX Runtime Web** (WASM/We
 
 | # | Notebook | Purpose | Open in Colab |
 |---|---|---|---|
+| **00** | `00_master_training_pipeline.ipynb` | **Recommended:** one-click persistent pipeline for manifests, YOLO, feature extraction, resumable training, and ONNX export. | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/joshiaradhya/SignBridge/blob/main/notebooks/00_master_training_pipeline.ipynb) |
 | **01** | `01_dataset_preparation.ipynb` | Dataset ingestion (INCLUDE-50 & ASL Citizen), signer-independent manifest splitting, leakage verification. | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/joshiaradhya/SignBridge/blob/main/notebooks/01_dataset_preparation.ipynb) |
 | **02** | `02_yolo_detection.ipynb` | Frame sampling and fine-tuning lightweight YOLOv8n detector (`person`, `hand`, `face`). | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/joshiaradhya/SignBridge/blob/main/notebooks/02_yolo_detection.ipynb) |
 | **03** | `03_mediapipe_extraction.ipynb` | Batch landmark extraction (Hands, Upper-Pose, Face Mesh) into normalized `.npz` feature sets. | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/joshiaradhya/SignBridge/blob/main/notebooks/03_mediapipe_extraction.ipynb) |
