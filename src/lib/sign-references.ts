@@ -24,6 +24,7 @@ import aslN from "@/assets/sign-references/asl-n.jpg";
 import aslO from "@/assets/sign-references/asl-o.jpg";
 import aslR from "@/assets/sign-references/asl-r.jpg";
 import aslS from "@/assets/sign-references/asl-s.jpg";
+import aslT from "@/assets/sign-references/asl-t.jpg";
 
 export type ReferenceAsset = {
   src: string;
@@ -88,6 +89,7 @@ const verifiedReferences: Record<string, VerifiedSignReference> = {
   "asl-asl-fingerspell-n-z-o": photographedAslHandshape(aslO, "O"),
   "asl-asl-fingerspell-n-z-r": photographedAslHandshape(aslR, "R"),
   "asl-asl-fingerspell-n-z-s": photographedAslHandshape(aslS, "S"),
+  "asl-asl-fingerspell-n-z-t": photographedAslHandshape(aslT, "T"),
 };
 
 export function getSignReference(signKey: string): SignReference {
