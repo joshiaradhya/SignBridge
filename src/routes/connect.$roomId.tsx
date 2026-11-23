@@ -17,6 +17,7 @@ import {
 import { classifyIslSegment } from "@/lib/isl-model";
 import { loadLandmarker, motionEnergy, type Landmark } from "@/lib/sign-recognizer";
 import { classifySignAttempt, normalizeFrame, type Point3D } from "@/lib/ml";
+import { phraseLabel } from "@/lib/signconnect-phrasing";
 
 export const Route = createFileRoute("/connect/$roomId")({
   head: () => ({
@@ -66,6 +67,7 @@ function CallRoom() {
   const localVideo = useRef<HTMLVideoElement | null>(null);
   const remoteVideo = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const joiningRef = useRef(false);
@@ -106,12 +108,16 @@ function CallRoom() {
         throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
       }
 
-      // Keep these constraints deliberately relaxed. Exact device, resolution, and
-      // frame-rate constraints can reject before browsers display their permission UI.
+      // Constrain resolution to 720p 30fps max to avoid burning CPU on 4K cameras
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "user" } },
+          video: {
+            width: { ideal: 1280, max: 1280 },
+            height: { ideal: 720, max: 720 },
+            frameRate: { ideal: 30, max: 30 },
+            facingMode: { ideal: "user" },
+          },
           audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         });
       } catch (first) {
@@ -121,11 +127,15 @@ function CallRoom() {
         try {
           // A busy or unavailable microphone should not prevent sign video from working.
           stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: "user" } },
+            video: {
+              width: { ideal: 1280, max: 1280 },
+              height: { ideal: 720, max: 720 },
+              facingMode: { ideal: "user" },
+            },
             audio: false,
           });
         } catch {
-          // Relaxed fallback for cameras that don't support facingMode constraints
+          // Relaxed fallback for cameras that don't support facingMode or resolution constraints
           stream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: false,
@@ -159,10 +169,18 @@ function CallRoom() {
     }
   }
 
+  // Auto-attempt camera start on arrival if not already armed
+  useEffect(() => {
+    if (!armed && !joiningRef.current) {
+      void requestMediaAndJoin();
+    }
+  }, []);
+
   useEffect(
     () => () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
+      remoteStreamRef.current = null;
     },
     [],
   );
@@ -175,6 +193,22 @@ function CallRoom() {
       void localVideo.current.play().catch(() => {});
     }
   }, [armed]);
+
+  // Ensure remote video element always retains remote stream across React renders
+  useEffect(() => {
+    if (remoteVideo.current && remoteStreamRef.current) {
+      if (remoteVideo.current.srcObject !== remoteStreamRef.current) {
+        remoteVideo.current.srcObject = remoteStreamRef.current;
+      }
+      void remoteVideo.current.play().catch(() => {
+        if (remoteVideo.current) {
+          remoteVideo.current.muted = true;
+          remoteVideo.current.play().catch(() => {});
+          setPlaybackBlocked(true);
+        }
+      });
+    }
+  }, [hasRemoteVideo, connected]);
 
   useEffect(() => {
     if (!userId || !armed) return;
@@ -204,16 +238,26 @@ function CallRoom() {
       if (cancelled) {
         return;
       }
+      if (state.room.status === "ended") {
+        setStatus("This call has already ended.");
+        return;
+      }
       setPrompt(state.room.conversation_prompt);
       setMode(state.room.mode === "private" ? "private" : "random");
       setPeerId(state.peerId);
       setStatus("Connecting to your partner…");
 
-
       const pc = new RTCPeerConnection({
         iceCandidatePoolSize: 10,
         iceServers: [
-          { urls: ["stun:stun.l.google.com:19302", "stun:global.stun.twilio.com:3478"] },
+          {
+            urls: [
+              "stun:stun.l.google.com:19302",
+              "stun:stun1.l.google.com:19302",
+              "stun:stun2.l.google.com:19302",
+              "stun:global.stun.twilio.com:3478",
+            ],
+          },
           {
             urls: [
               "turn:openrelay.metered.ca:80",
@@ -230,32 +274,60 @@ function CallRoom() {
       stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
       pc.ontrack = (e) => {
-        const inboundStream = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
+        const track = e.track;
+        if (!remoteStreamRef.current) {
+          remoteStreamRef.current = e.streams && e.streams[0] ? e.streams[0] : new MediaStream();
+        }
+        if (!remoteStreamRef.current.getTracks().some((t) => t.id === track.id)) {
+          remoteStreamRef.current.addTrack(track);
+        }
+        if (remoteVideo.current && remoteVideo.current.srcObject !== remoteStreamRef.current) {
+          remoteVideo.current.srcObject = remoteStreamRef.current;
+        }
+        setHasRemoteVideo(true);
+        setConnected(true);
+        setStatus("Live connection");
+
         if (remoteVideo.current) {
-          remoteVideo.current.srcObject = inboundStream;
           remoteVideo.current
             .play()
             .then(() => {
               setPlaybackBlocked(false);
-              setHasRemoteVideo(true);
-              setConnected(true);
-              setStatus("Live connection");
             })
             .catch(() => {
-              setPlaybackBlocked(true);
+              // If unmuted autoplay fails, play muted immediately so partner's video displays
+              if (remoteVideo.current) {
+                remoteVideo.current.muted = true;
+                remoteVideo.current.play().catch(() => {});
+                setPlaybackBlocked(true);
+              }
             });
         }
 
-        e.track.onunmute = () => {
+        track.onunmute = () => {
           setHasRemoteVideo(true);
           setConnected(true);
           if (remoteVideo.current) {
-            void remoteVideo.current.play().catch(() => setPlaybackBlocked(true));
+            if (remoteVideo.current.srcObject !== remoteStreamRef.current) {
+              remoteVideo.current.srcObject = remoteStreamRef.current;
+            }
+            remoteVideo.current.play().catch(() => {
+              if (remoteVideo.current) {
+                remoteVideo.current.muted = true;
+                remoteVideo.current.play().catch(() => {});
+                setPlaybackBlocked(true);
+              }
+            });
           }
         };
 
-        e.track.onended = () => {
-          setHasRemoteVideo(false);
+        track.onended = () => {
+          if (remoteStreamRef.current) {
+            const active = remoteStreamRef.current.getTracks().filter((t) => t.readyState === "live");
+            if (!active.some((t) => t.kind === "video")) {
+              setHasRemoteVideo(false);
+            }
+          }
         };
       };
 
@@ -267,10 +339,9 @@ function CallRoom() {
       });
       channelRef.current = channel;
 
-      // queue signalling messages until the channel is actually subscribed
+      // Queue signalling messages until the channel is actually subscribed
       let subscribed = false;
       const outbox: { event: string; payload: Record<string, unknown> }[] = [];
-      let signalWrite: Promise<unknown> = Promise.resolve();
 
       const send = (event: string, payload: Record<string, unknown>) => {
         const message = { ...payload, from: userId, to: peer };
@@ -282,24 +353,20 @@ function CallRoom() {
           outbox.push({ event, payload: message });
         }
 
-        // 2. Persistent fallback to Postgres via TanStack Start
-        if (event === "offer" || event === "answer" || event === "ice") {
+        // 2. Persistent fallback to Postgres via TanStack Start (for offer/answer only, or ice if unsubscribed)
+        if (event === "offer" || event === "answer" || (!subscribed && event === "ice")) {
           if (!peer) return;
           const recipientId = peer;
-          signalWrite = signalWrite
-            .then(() =>
-              fns.current.sendCallSignal({
-                data: {
-                  roomId,
-                  recipientId,
-                  signalType: event,
-                  payload: message,
-                },
-              }),
-            )
-            .catch(() => {
-              if (!cancelled) setStatus("Could not exchange connection data. Please retry.");
-            });
+          fns.current
+            .sendCallSignal({
+              data: {
+                roomId,
+                recipientId,
+                signalType: event as "offer" | "answer" | "ice",
+                payload: message,
+              },
+            })
+            .catch(() => {});
         }
       };
 
@@ -330,9 +397,11 @@ function CallRoom() {
         }
       };
 
-      // Immediate offer creation without artificial 2.5s delay
+      // Immediate offer creation with deadlock prevention
       const startOffer = async (force = false) => {
-        if (!peer || userId < peer) return;
+        if (!peer) return;
+        const polite = userId < peer;
+        if (!force && polite) return; // impolite offers by default; polite offers if forced or stalled
         if (makingOffer) return;
         if (pc.remoteDescription && pc.signalingState === "stable") return;
         if (pc.signalingState === "have-local-offer") {
@@ -347,12 +416,11 @@ function CallRoom() {
           initialDescriptionSent = false;
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
-          // Broadcast offer immediately via trickle ICE
           send("offer", { sdp: pc.localDescription });
           initialDescriptionSent = true;
           sendPendingLocalIce();
         } catch {
-          /* retried by the heartbeat below */
+          /* retried by the heartbeat */
         } finally {
           makingOffer = false;
         }
@@ -384,8 +452,6 @@ function CallRoom() {
       pc.onicecandidate = (e) => {
         if (!e.candidate) return;
         const candidate = e.candidate.toJSON();
-        // The initial SDP must be stored before its trickle candidates. Otherwise
-        // a polling peer can read candidates first and never reach a usable offer.
         if (!initialDescriptionSent) pendingLocalIce.push(candidate);
         else send("ice", { candidate });
       };
@@ -395,7 +461,6 @@ function CallRoom() {
       pc.onsignalingstatechange = () => {
         if (pc.signalingState === "stable" && pc.remoteDescription) void drainIce();
       };
-
 
       pc.onconnectionstatechange = () => {
         const s = pc.connectionState;
@@ -417,7 +482,6 @@ function CallRoom() {
         }
       };
 
-      // Some browsers (notably older Safari) report progress only here.
       pc.oniceconnectionstatechange = () => {
         const s = pc.iceConnectionState;
         if (s === "connected" || s === "completed") {
@@ -517,8 +581,16 @@ function CallRoom() {
           peer = payload.from;
           setPeerId(payload.from);
           if (!payload.reply) send("hello", { reply: true });
-          // A peer that just (re)appeared may have missed our earlier offer.
           void startOffer(!isNewPeer);
+        })
+        .on("broadcast", { event: "bye" }, () => {
+          setStatus("Your partner has left the call.");
+          setConnected(false);
+          setHasRemoteVideo(false);
+          setPeerId(null);
+          if (remoteVideo.current) {
+            remoteVideo.current.srcObject = null;
+          }
         })
         .on("presence", { event: "sync" }, () => {
           const presentIds = Object.keys(channel.presenceState()).filter((id) => id !== userId);
@@ -553,7 +625,8 @@ function CallRoom() {
       let lastSignalId = 0;
       let readingSignals = false;
       const pollSignals = async () => {
-        if (readingSignals || pc.signalingState === "closed") return;
+        // Back off polling if already connected or busy
+        if (readingSignals || pc.signalingState === "closed" || pc.connectionState === "connected") return;
         readingSignals = true;
         try {
           const rows = await fns.current.getCallSignals({ data: { roomId, afterId: lastSignalId } });
@@ -565,19 +638,12 @@ function CallRoom() {
           readingSignals = false;
         }
       };
-      // Fetch immediately: a peer may have sent its offer before this browser
-      // finished subscribing, so waiting for the first interval loses valuable time.
       void pollSignals();
-      const signalPoll = window.setInterval(() => void pollSignals(), 350);
+      const signalPoll = window.setInterval(() => void pollSignals(), 1000);
 
-      // Keep announcing ourselves until the handshake completes, but leave a
-      // negotiation that is already in flight alone: constantly re-offering (which
-      // is what the old heartbeat did) restarts ICE every second and is exactly why
-      // two laptops never connected. Once both descriptions are set we only step in
-      // if the connection genuinely fails.
       let beats = 0;
       let handshakeDone = false;
-      const heartbeat = window.setInterval(() => {
+      const heartbeat = window.setInterval(async () => {
         const s = pc.connectionState;
         if (s === "closed") return;
         beats += 1;
@@ -585,27 +651,47 @@ function CallRoom() {
 
         if (s === "connected") return;
 
+        // If peer is still unknown, check roomState periodically to break race condition
+        if (!peer && beats % 2 === 0) {
+          try {
+            const freshState = await fns.current.roomStateCall({ data: { roomId } });
+            if (freshState.peerId) {
+              peer = freshState.peerId;
+              setPeerId(freshState.peerId);
+              send("hello", { reply: false });
+              void startOffer(false);
+            }
+          } catch {
+            /* ignore transient errors */
+          }
+        }
+
         if (!handshakeDone) {
-          // No peer yet, or our offer/answer got lost: re-announce and re-offer,
-          // but only every other second so each attempt has time to land.
           send("hello", { reply: false });
-          if (beats % 2 === 0) void startOffer(true);
+          // Break deadlock: if polite peer waited > 2 beats with no offer, initiate offer
+          if (beats % 2 === 0) {
+            void startOffer(beats >= 3);
+          }
           return;
         }
 
         // Descriptions exchanged. Give ICE time, then restart it if it stalled.
         if (
-          beats % 12 === 0 &&
+          beats % 10 === 0 &&
           (s === "failed" || s === "disconnected" || pc.iceConnectionState === "failed")
         ) {
           void renegotiate();
         }
       }, 1000);
 
-
       cleanup = () => {
         window.clearInterval(heartbeat);
         window.clearInterval(signalPoll);
+        try {
+          void channel.send({ type: "broadcast", event: "bye", payload: { from: userId } });
+        } catch {
+          /* noop */
+        }
         pc.ontrack = null;
         pc.onicecandidate = null;
         pc.onconnectionstatechange = null;
@@ -613,6 +699,7 @@ function CallRoom() {
         pc.onsignalingstatechange = null;
         pc.close();
         pcRef.current = null;
+        remoteStreamRef.current = null;
         channelRef.current = null;
         if (localVideo.current) localVideo.current.srcObject = null;
         if (remoteVideo.current) remoteVideo.current.srcObject = null;
@@ -637,6 +724,7 @@ function CallRoom() {
     let quietFrames = 0;
     let lastEmit = 0;
     let lastFrameTime = 0;
+    let lastLandmarkTimestamp = 0;
     let isProcessing = false;
     const FRAME_INTERVAL_MS = 75; // ~13 FPS prevents UI thread starvation and audio/video lag
 
@@ -648,6 +736,12 @@ function CallRoom() {
         if (stop) return;
         const now = performance.now();
 
+        // If camera is turned off by user, skip detection completely
+        if (camOff) {
+          if (!stop) raf = requestAnimationFrame(() => void tick());
+          return;
+        }
+
         // Throttle frame processing to prevent CPU starvation
         if (now - lastFrameTime >= FRAME_INTERVAL_MS && !isProcessing) {
           lastFrameTime = now;
@@ -656,7 +750,10 @@ function CallRoom() {
           try {
             const video = localVideo.current;
             if (video && video.readyState >= 2 && video.videoWidth > 0) {
-              const res = landmarker.detectForVideo(video, now);
+              const landmarkTimestamp = Math.max(now, lastLandmarkTimestamp + 1);
+              lastLandmarkTimestamp = landmarkTimestamp;
+              const res = landmarker.detectForVideo(video, landmarkTimestamp);
+
               // Flatten up to two detected hands
               const hand = res.landmarks?.flat() as Landmark[] | undefined;
               if (hand && hand.length > 0) {
@@ -683,21 +780,27 @@ function CallRoom() {
                 buffer = [];
                 normBuffer = [];
                 quietFrames = 0;
-                const match = await classifySignAttempt(signLang, normSegment, segment);
-                if (match && match.confidence >= 0.6) {
-                  lastEmit = now;
-                  setDetecting(match.label);
-                  const { text } = await fns.current.translateSign({ data: { label: match.label } }).catch(() => ({
-                    text: match.label,
-                  }));
-                  setDetecting(null);
-                  const caption: Caption = { senderId: userId, text, timestamp: Date.now() };
-                  pushCaption(caption);
-                  channelRef.current?.send({ type: "broadcast", event: "caption", payload: caption });
-                  fns.current.saveCaption({
-                    data: { roomId, label: match.label, confidence: match.confidence, text },
-                  }).catch(() => {});
-                }
+
+                // Run classification detached so recognition loop doesn't stall
+                void (async () => {
+                  try {
+                    const match = await classifySignAttempt(signLang, normSegment, segment);
+                    if (match && match.confidence >= 0.6) {
+                      lastEmit = performance.now();
+                      setDetecting(match.label);
+                      const text = phraseLabel(match.label);
+                      setTimeout(() => setDetecting(null), 800);
+                      const caption: Caption = { senderId: userId, text, timestamp: Date.now() };
+                      pushCaption(caption);
+                      channelRef.current?.send({ type: "broadcast", event: "caption", payload: caption });
+                      fns.current.saveCaption({
+                        data: { roomId, label: match.label, confidence: match.confidence, text },
+                      }).catch(() => {});
+                    }
+                  } catch (classifyErr) {
+                    console.warn("[SignConnect Classification Error]", classifyErr);
+                  }
+                })();
               }
             }
           } catch (err) {
@@ -720,7 +823,7 @@ function CallRoom() {
       buffer = [];
       normBuffer = [];
     };
-  }, [userId, armed, roomId, pushCaption, signLang]);
+  }, [userId, armed, roomId, pushCaption, signLang, camOff]);
 
   function toggleMute() {
     const track = streamRef.current?.getAudioTracks()[0];
@@ -803,11 +906,18 @@ function CallRoom() {
             ) : null}
           </div>
           <div className="ink-lg relative overflow-hidden rounded-2xl bg-card">
-            <video ref={remoteVideo} autoPlay playsInline className="aspect-video w-full object-cover" />
-            {!connected && !hasRemoteVideo ? (
-              <p className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-                Waiting for your partner…
-              </p>
+            <video
+              ref={remoteVideo}
+              autoPlay
+              playsInline
+              className={`aspect-video w-full object-cover ${hasRemoteVideo ? "block" : "bg-muted"}`}
+            />
+            {!hasRemoteVideo ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {status === "Live connection" ? "Receiving video track…" : status}
+                </p>
+              </div>
             ) : null}
             <span className="label-caps ink absolute top-3 left-3 rounded-lg bg-card px-2 py-1 text-[10px]">
               Partner
@@ -817,17 +927,18 @@ function CallRoom() {
                 type="button"
                 className="ink ink-press label-caps absolute right-3 bottom-3 rounded-lg bg-primary px-3 py-2 text-xs"
                 onClick={() => {
-                  void remoteVideo.current
-                    ?.play()
-                    .then(() => {
-                      setPlaybackBlocked(false);
-                      setHasRemoteVideo(true);
-                      setConnected(true);
-                    })
-                    .catch(() => {});
+                  if (remoteVideo.current) {
+                    remoteVideo.current.muted = false;
+                    void remoteVideo.current
+                      .play()
+                      .then(() => {
+                        setPlaybackBlocked(false);
+                      })
+                      .catch(() => {});
+                  }
                 }}
               >
-                Play partner video
+                Unmute partner audio
               </button>
             ) : null}
           </div>

@@ -255,11 +255,12 @@ function Practice() {
         ? "ASL"
         : "ISL";
 
-    const modelMatch = await classifySignAttempt(signLanguage, normalizedFrames, landmarkFrames);
-    if (!modelMatch) {
-      setError(`The ${signLanguage} model could not confidently recognise this attempt. Keep hands in frame and try again.`);
+    if (landmarkFrames.length === 0) {
+      setError("No hand landmarks were detected. Make sure your hands are clearly visible in the camera frame and try again.");
       return;
     }
+
+    const modelMatch = await classifySignAttempt(signLanguage, normalizedFrames, landmarkFrames);
 
     const analysis = adaptPracticeFeedback(analyseAttempt(
       {
@@ -271,7 +272,7 @@ function Practice() {
         jitter,
       },
       activeSign,
-      { ...modelMatch, targetLabel: activeSign?.gloss ?? "" },
+      modelMatch ? { ...modelMatch, targetLabel: activeSign?.gloss ?? "" } : undefined,
     ), user?.id);
     setResult(analysis);
 
