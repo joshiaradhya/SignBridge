@@ -50,6 +50,9 @@ function Practice() {
   const [mirror, setMirror] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
+  const [trackerStatus, setTrackerStatus] = useState<"idle" | "loading" | "ready" | "error">(
+    "idle",
+  );
   const [countdown, setCountdown] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
   const [selected, setSelected] = useState<string | undefined>(signParam);
@@ -118,6 +121,20 @@ function Practice() {
     }
   }, [cameraOn]);
 
+  const warmHandTracker = useCallback(() => {
+    setTrackerStatus("loading");
+    void loadLandmarker()
+      .then(() => setTrackerStatus("ready"))
+      .catch(() => setTrackerStatus("error"));
+  }, []);
+
+  useEffect(() => {
+    // Start fetching the model shortly after this route opens. This overlaps
+    // network/WASM startup with reading the sign instructions.
+    const timer = window.setTimeout(warmHandTracker, 250);
+    return () => window.clearTimeout(timer);
+  }, [warmHandTracker]);
+
   async function startCamera() {
     setError(null);
     try {
@@ -148,6 +165,9 @@ function Practice() {
         await videoRef.current.play().catch(() => {});
       }
       setCameraOn(true);
+      // Load the model while the learner positions their hands, rather than
+      // making the record button appear to pause before its three-second timer.
+      warmHandTracker();
     } catch {
       setError(
         "We couldn't access your camera. Make sure permissions are granted and no other application is using it.",
@@ -160,6 +180,10 @@ function Practice() {
     const canvas = canvasRef.current;
     if (!video || !canvas || !cameraOn) return;
 
+    if (trackerStatus !== "ready") {
+      setError("The hand tracker is still preparing. It should be ready in a moment.");
+      return;
+    }
     const landmarker = await loadLandmarker().catch(() => null);
     if (!landmarker) {
       setError("The hand-tracking model could not start. Reload the page and try again.");
@@ -192,7 +216,8 @@ function Practice() {
     await new Promise<void>((resolve) => {
       const tick = () => {
         const elapsed = performance.now() - start;
-        setCountdown(Math.max(0, Math.ceil((durationMs - elapsed) / 1000)));
+        const nextCountdown = Math.max(0, Math.ceil((durationMs - elapsed) / 1000));
+        setCountdown((current) => (current === nextCountdown ? current : nextCountdown));
         ctx.drawImage(video, 0, 0, W, H);
         const handRes = landmarker.detectForVideo(video, performance.now());
         const hands = handRes.landmarks?.flat() as Landmark[] | undefined;
@@ -301,10 +326,10 @@ function Practice() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       <SiteHeader />
       <main className="grid-paper practice-page min-h-screen">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
           <header className="practice-banner ink-lg overflow-hidden rounded-2xl px-5 py-6 sm:px-8 sm:py-8">
             <div className="relative z-10 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
               <div>
@@ -327,8 +352,8 @@ function Practice() {
             </div>
           </header>
 
-          <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(20rem,0.85fr)]">
-            <section className="practice-panel ink-lg rounded-2xl bg-card p-4 sm:p-6">
+          <div className="mt-6 grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(20rem,0.85fr)]">
+            <section className="practice-panel ink-lg min-w-0 rounded-2xl bg-card p-4 sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="label-caps text-[10px] text-muted-foreground">Your workspace</p>
@@ -375,10 +400,16 @@ function Practice() {
                 <div className="mt-4 flex flex-wrap items-center gap-3">
                   <button
                     onClick={runAttempt}
-                    disabled={recording}
+                    disabled={recording || trackerStatus !== "ready"}
                     className="ink ink-press label-caps rounded-xl bg-accent px-5 py-3 text-sm disabled:opacity-60"
                   >
-                    {recording ? `Recording… ${countdown}` : "Record 3s attempt"}
+                    {recording
+                      ? `Recording… ${countdown}`
+                      : trackerStatus === "error"
+                        ? "Hand tracker unavailable"
+                        : trackerStatus !== "ready"
+                          ? "Preparing hand tracker…"
+                          : "Record 3s attempt"}
                   </button>
                   <button
                     onClick={stopCamera}
@@ -409,9 +440,11 @@ function Practice() {
 
                   <div className="mt-4 grid gap-2 sm:grid-cols-2">
                     {result.criteria.map((c) => (
-                      <div key={c.key} className="ink rounded-xl bg-card p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="label-caps text-[11px]">{c.label}</span>
+                      <div key={c.key} className="ink min-w-0 rounded-xl bg-card p-3">
+                        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                          <span className="label-caps min-w-0 break-words text-[11px]">
+                            {c.label}
+                          </span>
                           <span
                             className={`ink label-caps rounded-full px-2 py-0.5 text-[10px] ${
                               c.matched ? "bg-accent" : "bg-background"
@@ -459,7 +492,7 @@ function Practice() {
               ) : null}
             </section>
 
-            <section className="practice-panel practice-reference ink-lg rounded-2xl bg-card p-4 sm:p-6 lg:sticky lg:top-4">
+            <section className="practice-panel practice-reference ink-lg min-w-0 rounded-2xl bg-card p-4 sm:p-6 lg:sticky lg:top-4">
               <div className="flex items-end justify-between gap-3">
                 <div>
                   <p className="label-caps text-[10px] text-muted-foreground">Study the sign</p>
