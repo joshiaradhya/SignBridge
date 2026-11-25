@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "generated_from": [
+    "supabase/migrations/20260820140912_2acb4d1e-8585-4e44-b726-a57a3340ab74.sql",
+    "supabase/migrations/20260822155354_c58f556c-1073-4aef-b517-921ec71bea77.sql",
+    "supabase/migrations/20260904225602_49260b61-12d9-4e69-bcc7-37d84d1ed73f.sql",
+    "public/models/*-metadata.json"
+  ],
+  "normalization": {"trim": true, "uppercase": true, "collapse_whitespace": true},
+  "sources": {
+    "INCLUDE-50": {"language": "ISL", "license": "CC BY 4.0", "acquisition": "provider archive; selective ZIP extraction supported"},
+    "ASL-Citizen": {"language": "ASL", "license": "Academic Research Use (Desai et al., Microsoft Research)", "acquisition": "metadata-guided provider download or selective ZIP extraction"}
+  },
+  "curriculum": {
+    "ASL": {
+      "alphabet": ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"],
+      "numbers": ["0","1","2","3","4","5","6","7","8","9"],
+      "greetings": ["HELLO","THANK YOU","PLEASE","SORRY","MY NAME","NICE TO MEET YOU","HOW ARE YOU","GOODBYE"],
+      "daily_life": ["EAT","DRINK","SLEEP","WANT","TODAY","TOMORROW","MORNING","NIGHT","MOTHER","FATHER","SISTER","BABY","HOUSE","KITCHEN","DOOR","TABLE"],
+      "school_work": ["TEACHER","STUDENT","BOOK","LEARN","WORK","MEETING","COMPUTER","BREAK"],
+      "emotions": ["HAPPY","SAD","ANGRY","TIRED","NERVOUS","PROUD","CONFUSED","CALM"],
+      "grammar": ["TOPIC-FIRST","TIME-FIRST","RHETORICAL","YES-NO-Q","WH-Q","CS-MOUTH"],
+      "conversation": ["WEATHER","WEEKEND","FINE","WHO","WHAT","WHERE","WHY","LEFT","RIGHT","STRAIGHT","NEAR","BUY","HOW MUCH","EXPENSIVE","CARD"]
+    },
+    "ISL": {
+      "alphabet": ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"],
+      "numbers": ["0","1","2","3","4","5","6","7","8","9"],
+      "greetings": ["NAMASTE","THANK YOU","HELP","WATER","PLEASE","SORRY","WELCOME"],
+      "family_food": ["MOTHER","FATHER","SISTER","BROTHER","EAT","RICE","TEA"],
+      "school_work": ["TEACHER","STUDENT","BOOK","WRITE","WORK","OFFICE","MONEY","TIME"],
+      "conversation": ["HOW MUCH","BUY","CHEAP","BAG","BUS","TRAIN","WHERE"]
+    }
+  },
+  "trained_classes": {
+    "ASL": {
+      "source": "ASL-Citizen",
+      "dynamic": true,
+      "labels": ["AGAIN","BOOK","BROTHER","DRINK","EAT","FAMILY","FATHER","FINE","GOODBYE","HAPPY","HELLO","HELP","HOME","HOUSE","HOW","LEARN","MEETING","MORE","MORNING","MOTHER","NIGHT","NO","PLEASE","SAD","SISTER","SORRY","STUDENT","TEACHER","THANK YOU","TIME","TODAY","TOMORROW","WANT","WATER","WHAT","WHERE","WHO","WHY","WORK","YES"]
+    },
+    "ISL": {
+      "source": "INCLUDE-50",
+      "dynamic": true,
+      "labels": ["AGAIN","ALL","BAD","BEFORE","BEST","BOOK","BOY","BUS","BUT","CALM","CAN","CHAIR","COME","DAY","DOCTOR","DRINK","EAT","FAMILY","FATHER","FEW","FINE","GIRL","GIVE","GOOD","HAPPY","HEARING","HELLO","HELP","HOME","HOUSE","HOW","MEETING","MONEY","MORE","MOTHER","NAME","NO","PLEASE","RIGHT","SAD","SAME","SCHOOL","SORRY","STUDENT","TEA","TEACHER","THANK YOU","TIME","WATER","YES"]
+    }
+  },
+  "aliases": {
+    "THANKYOU": "THANK YOU", "THANK-YOU": "THANK YOU", "THANK_YOU": "THANK YOU",
+    "GOOD BYE": "GOODBYE", "HOW-MUCH": "HOW MUCH", "HOW_MUCH": "HOW MUCH",
+    "NAMASKAR": "NAMASTE", "THANKS": "THANK YOU"
+  },
+  "classification_rules": {
+    "alphabet": {"classification": "static", "exceptions_dynamic": ["J", "Z"]},
+    "numbers": {"classification": "static"},
+    "greetings": {"classification": "dynamic"},
+    "daily_life": {"classification": "dynamic"},
+    "family_food": {"classification": "dynamic"},
+    "school_work": {"classification": "dynamic"},
+    "emotions": {"classification": "dynamic"},
+    "grammar": {"classification": "not-a-single-isolated-sign"},
+    "conversation": {"classification": "dynamic"}
+  },
+  "model_class_mapping": {
+    "ASL": "trained_classes.ASL.labels maps directly, by index, to public/models/asl-metadata.json labels",
+    "ISL": "trained_classes.ISL.labels maps directly, by index, to public/models/isl-metadata.json labels"
+  },
+  "notes": [
+    "Curriculum labels are language-scoped: ASL A and ISL A are different signs.",
+    "Static alphabet/numeric lessons are intentionally retained for learning but are not silently added to temporal recognition models unless a compatible, labelled source is configured.",
+    "Only trained_classes may be acquired for recognition training; curriculum-only labels remain available in Learn and Practice."
+  ]
+}

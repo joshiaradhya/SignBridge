@@ -34,6 +34,8 @@ class TrainingConfig:
     batch_size: int = 32
     patience: int = 15
     label_smoothing: float = 0.1
+    seed: int = 42
+    mixed_precision: bool = True
     device: str = "cuda" if HAS_TORCH_TRAIN and torch.cuda.is_available() else "cpu"
 
 
@@ -133,14 +135,18 @@ class SignModelTrainer:
         correct = 0
         total = 0
 
+        scaler = torch.amp.GradScaler("cuda", enabled=self.config.mixed_precision and self.device.type == "cuda")
         for x, y in dataloader:
             x, y = x.to(self.device), y.to(self.device)
             self.optimizer.zero_grad()
-            logits = self.model(x)
-            loss = self.criterion(logits, y)
-            loss.backward()
+            with torch.autocast(device_type=self.device.type, enabled=self.config.mixed_precision and self.device.type == "cuda"):
+                logits = self.model(x)
+                loss = self.criterion(logits, y)
+            scaler.scale(loss).backward()
+            scaler.unscale_(self.optimizer)
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-            self.optimizer.step()
+            scaler.step(self.optimizer)
+            scaler.update()
 
             total_loss += loss.item() * len(y)
             preds = logits.argmax(dim=-1)
@@ -169,6 +175,9 @@ class SignModelTrainer:
 
     def fit(self, npz_path: Path | str, resume_latest: bool = True) -> None:
         """Runs the complete training and validation cycle with early stopping."""
+        torch.manual_seed(self.config.seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(self.config.seed)
         train_loader, val_loader, _, classes = create_dataloaders(
             npz_path, batch_size=self.config.batch_size
         )

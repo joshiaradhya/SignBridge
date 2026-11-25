@@ -1,5 +1,7 @@
 # SignBridge ML Pipeline Architecture & Training Guide
 
+> Dataset acquisition is now controlled by [`dataset/prepare_dataset.py`](../dataset/prepare_dataset.py) and [`dataset/config/target_signs.json`](../dataset/config/target_signs.json). Run its metadata inspection before any extraction; it retains only configured recognition classes and shares one cleaned landmark cache across training stages. See the [dataset guide](../dataset/README.md) for Colab commands and source/licence handling.
+
 SignBridge implements a production-grade, browser-based sign language recognition system supporting both **Indian Sign Language (ISL)** and **American Sign Language (ASL)**.
 
 Inference runs locally in the user's browser using **ONNX Runtime Web** (WASM/WebGPU) and **MediaPipe Tasks Vision**, while all dataset processing, GPU training, evaluation, and ONNX export are executed on **Google Colab**.

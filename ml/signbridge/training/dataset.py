@@ -31,11 +31,15 @@ if HAS_TORCH_DATA:
             self.split = split
             self.augment = augment
 
-            data = np.load(npz_path)
+            # Do not make an additional split-specific feature copy. NPZ archives
+            # are compressed, so NumPy materialises the archive once; individual
+            # samples are then copied only when a DataLoader batch needs them.
+            data = np.load(npz_path, mmap_mode="r", allow_pickle=False)
             all_splits = data["splits"]
             mask = all_splits == split
 
-            self.features = data["features"][mask].astype(np.float32)
+            self.features = data["features"]
+            self.indices = np.flatnonzero(mask)
             raw_labels = data["labels"][mask].astype(str)
 
             # Canonical sorted label vocabulary
@@ -48,10 +52,10 @@ if HAS_TORCH_DATA:
             self.targets = np.array([self.label_to_idx[l] for l in raw_labels], dtype=np.int64)
 
         def __len__(self) -> int:
-            return len(self.features)
+            return len(self.indices)
 
         def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
-            feat = self.features[idx].copy()  # [32, 222]
+            feat = np.asarray(self.features[self.indices[idx]], dtype=np.float32).copy()  # [32, 222]
 
             if self.augment and self.split == "train":
                 # 1. Spatial jitter: small Gaussian noise
@@ -79,14 +83,18 @@ if HAS_TORCH_DATA:
         val_ds = SignSequenceDataset(npz_path, split="val", augment=False)
         test_ds = SignSequenceDataset(npz_path, split="test", augment=False)
 
+        pin_memory = bool(torch.cuda.is_available())
+        loader_options = {"num_workers": num_workers, "pin_memory": pin_memory}
+        if num_workers > 0:
+            loader_options["persistent_workers"] = True
         train_loader = DataLoader(
-            train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True
+            train_ds, batch_size=batch_size, shuffle=True, **loader_options
         )
         val_loader = DataLoader(
-            val_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True
+            val_ds, batch_size=batch_size, shuffle=False, **loader_options
         )
         test_loader = DataLoader(
-            test_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True
+            test_ds, batch_size=batch_size, shuffle=False, **loader_options
         )
 
         return train_loader, val_loader, test_loader, train_ds.classes

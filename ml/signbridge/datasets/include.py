@@ -10,6 +10,8 @@ import re
 from pathlib import Path
 from typing import Sequence
 
+from dataset.vocabulary import load_vocabulary, normalize_label, training_labels
+
 from .manifest import (
     DatasetManifest,
     DatasetSplit,
@@ -18,15 +20,8 @@ from .manifest import (
     verify_signer_isolation,
 )
 
-# Standard 50 glosses commonly used in INCLUDE-50 benchmark
-INCLUDE_50_VOCABULARY = [
-    "AGAIN", "ALL", "BAD", "BEFORE", "BEST", "BOOK", "BOY", "BUS", "BUT", "CALM",
-    "CAN", "CHAIR", "COME", "DAY", "DOCTOR", "DRINK", "EAT", "FAMILY", "FATHER",
-    "FEW", "FINE", "GIRL", "GIVE", "GOOD", "HAPPY", "HEARING", "HELLO", "HELP",
-    "HOME", "HOUSE", "HOW", "MEETING", "MONEY", "MORE", "MOTHER", "NAME", "NO",
-    "PLEASE", "RIGHT", "SAD", "SAME", "SCHOOL", "SORRY", "STUDENT", "TEA",
-    "TEACHER", "THANK YOU", "TIME", "WATER", "YES"
-]
+# Backwards-compatible export. The JSON configuration is the source of truth.
+INCLUDE_50_VOCABULARY = sorted(training_labels(load_vocabulary(), "ISL"))
 
 
 def extract_signer_from_filename(filename: str, parent_dirname: str = "") -> str:
@@ -80,15 +75,16 @@ def prepare_include_manifest(
     if not videos:
         raise ValueError(f"No video files found in {dataset_dir}")
 
-    allowed_vocab = {v.upper() for v in target_vocab} if target_vocab else None
+    vocabulary = load_vocabulary()
+    allowed_vocab = {normalize_label(v, vocabulary) for v in target_vocab} if target_vocab else set(INCLUDE_50_VOCABULARY)
 
     items: list[ManifestItem] = []
     seen_labels: set[str] = set()
 
     for vid in sorted(videos):
         # Determine gloss label from parent directory
-        label = vid.parent.name.upper()
-        if allowed_vocab and label not in allowed_vocab:
+        label = normalize_label(vid.parent.name, vocabulary)
+        if label not in allowed_vocab:
             continue
 
         signer_id = extract_signer_from_filename(vid.name, vid.parent.parent.name)

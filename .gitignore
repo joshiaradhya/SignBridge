@@ -41,6 +41,10 @@ __pycache__/
 # ml/signbridge/datasets/, which is the Python package Colab imports.
 data/
 /datasets/
+dataset/cache/
+dataset/reports/
+dataset/raw/
+dataset/processed/
 checkpoints/
 runs/
 *.pt
@@ -53,4 +57,7 @@ runs/
 public/models/*.onnx
 # Preserve model metadata and configs
 !public/models/*.json
+
+# Dataset pipeline state is local/Drive-only; keep its small source configuration.
+!dataset/config/target_signs.json
 

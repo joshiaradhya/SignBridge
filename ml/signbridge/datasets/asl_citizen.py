@@ -10,6 +10,8 @@ import csv
 from pathlib import Path
 from typing import Sequence
 
+from dataset.vocabulary import load_vocabulary, normalize_label, training_labels
+
 from .manifest import (
     DatasetManifest,
     DatasetSplit,
@@ -18,14 +20,8 @@ from .manifest import (
     verify_signer_isolation,
 )
 
-# Standard ASL isolated signs matching SignBridge curriculum
-DEFAULT_ASL_VOCABULARY = [
-    "HELLO", "GOODBYE", "PLEASE", "THANK YOU", "SORRY", "YES", "NO", "HELP",
-    "WANT", "EAT", "DRINK", "WATER", "MORE", "AGAIN", "FINE", "HAPPY", "SAD",
-    "LEARN", "TEACHER", "STUDENT", "BOOK", "WORK", "MEETING", "FAMILY", "MOTHER",
-    "FATHER", "SISTER", "BROTHER", "HOUSE", "HOME", "TIME", "TODAY", "TOMORROW",
-    "MORNING", "NIGHT", "WHO", "WHAT", "WHERE", "WHY", "HOW"
-]
+# Backwards-compatible export. The JSON configuration is the source of truth.
+DEFAULT_ASL_VOCABULARY = sorted(training_labels(load_vocabulary(), "ASL"))
 
 
 def prepare_asl_citizen_manifest(
@@ -43,7 +39,8 @@ def prepare_asl_citizen_manifest(
     if not csv_path.exists():
         raise FileNotFoundError(f"ASL Citizen metadata CSV not found: {csv_path}")
 
-    allowed_vocab = {v.upper() for v in target_vocab} if target_vocab else None
+    vocabulary = load_vocabulary()
+    allowed_vocab = {normalize_label(v, vocabulary) for v in target_vocab} if target_vocab else set(DEFAULT_ASL_VOCABULARY)
 
     items: list[ManifestItem] = []
     seen_labels: set[str] = set()
@@ -53,14 +50,14 @@ def prepare_asl_citizen_manifest(
         for row in reader:
             # Handle column names (case-insensitive)
             row_lower = {k.lower().strip(): v for k, v in row.items()}
-            gloss = (row_lower.get("gloss") or row_lower.get("label") or "").upper().strip()
+            gloss = normalize_label(row_lower.get("gloss") or row_lower.get("label") or "", vocabulary)
             participant = row_lower.get("participant id") or row_lower.get("participant_id") or row_lower.get("signer") or "UNKNOWN"
             video_file = row_lower.get("video file") or row_lower.get("filename") or row_lower.get("video_path") or ""
 
             if not gloss or not video_file:
                 continue
 
-            if allowed_vocab and gloss not in allowed_vocab:
+            if gloss not in allowed_vocab:
                 continue
 
             video_path = vid_root / video_file
