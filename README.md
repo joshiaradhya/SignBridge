@@ -291,7 +291,7 @@ SignBridge is deployed using Vercel.
 4. Configure Supabase authentication redirect URLs.
 5. Deploy the application.
 
-**Production Website:** https://signbridge.app
+**Production Website:** https://signbridge-three-vert.vercel.app
 
 Machine learning model training is handled separately from the Vercel deployment process.
 

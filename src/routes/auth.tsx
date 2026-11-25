@@ -30,6 +30,19 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+const CANONICAL_PRODUCTION_ORIGIN = "https://signbridge-three-vert.vercel.app";
+
+function authRedirectUrl(path: string) {
+  const configuredOrigin = import.meta.env["VITE_PUBLIC_APP_URL"];
+  const origin =
+    configuredOrigin ||
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+      ? window.location.origin
+      : CANONICAL_PRODUCTION_ORIGIN);
+
+  return new URL(path, origin).toString();
+}
+
 function AuthPage() {
   const { redirect: redirectTo, mode: modeParam } = Route.useSearch();
   const [mode, setMode] = useState<"signin" | "signup">(
@@ -49,7 +62,9 @@ function AuthPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!isSupabaseConfigured()) {
-      setMessage("Sign-in is not configured for this deployment yet. Add the VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY variables in Vercel.");
+      setMessage(
+        "Sign-in is not configured for this deployment yet. Add the VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY variables in Vercel.",
+      );
       return;
     }
     setBusy(true);
@@ -59,13 +74,11 @@ function AuthPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}${redirectTo ?? "/dashboard"}`,
+          emailRedirectTo: authRedirectUrl(redirectTo ?? "/dashboard"),
         },
       });
       setMessage(
-        error
-          ? error.message
-          : "Account created. Check your email to confirm it, then sign in.",
+        error ? error.message : "Account created. Check your email to confirm it, then sign in.",
       );
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -76,18 +89,23 @@ function AuthPage() {
 
   async function oauth(provider: "google" | "apple" | "azure", label: string) {
     if (!isSupabaseConfigured()) {
-      setMessage("Sign-in is not configured for this deployment yet. Add the public Supabase variables in Vercel.");
+      setMessage(
+        "Sign-in is not configured for this deployment yet. Add the public Supabase variables in Vercel.",
+      );
       return;
     }
     const options = {
-      redirectTo: `${window.location.origin}${redirectTo ?? "/dashboard"}`,
+      redirectTo: authRedirectUrl(redirectTo ?? "/dashboard"),
       ...(provider === "azure" ? { scopes: "email" } : {}),
     };
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options,
     });
-    if (error) setMessage(`${label} sign-in failed. Enable and configure this provider in Supabase Auth first.`);
+    if (error)
+      setMessage(
+        `${label} sign-in failed. Enable and configure this provider in Supabase Auth first.`,
+      );
   }
 
   return (
